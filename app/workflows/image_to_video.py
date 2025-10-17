@@ -1,200 +1,107 @@
-import os
-import asyncio
-from typing import Dict, Any, List, Optional
-import aiohttp
-from .base import AsyncWorkflow
-from ..core.logger import logger
-from ..core.storage.downloader import downloader
-from ..core.storage.uploader import uploader
-from ..core.storage.file_manager import input_file_manager, output_file_manager
-from ..core.job_manager import job_manager
-from ..core.utils import process_image
-from ..core.concurrency import concurrency_manager
+from typing import Dict, Any, List
+from ..core.orchestrator import WorkflowBuilder, ServiceStep
+from ..services.nodes.qwen_vl import QwenVLNode
+from ..services.nodes.qwen_edit import QwenEditNode
+from ..services.nodes.wan_i2v import WanI2VNode
+from ..services.nodes.video_concat import VideoConcatNode
+from ..core.utils import get_service_url
 
-class ImageToVideoWorkflow(AsyncWorkflow):
-    """Async workflow for image to video generation"""
+class ImageToVideoWorkflow:
+    """Image to video workflow using orchestrator"""
     
-    def __init__(self):
-        super().__init__("image_to_video")
-    
-    async def download_inputs(self, job_id: str) -> Dict[str, str]:
-        """Download input files"""
-        job_state = job_manager.get_job_state(job_id)
-        if not job_state:
-            raise ValueError(f"Job {job_id} not found")
+    def __init__(self, services: Dict[str, Any]):
+        self.qwen_vl = QwenVLNode(services["qwen_vl_url"], services["api_key"])
+        self.qwen_edit = QwenEditNode(services["qwen_edit_url"], services["api_key"])
+        self.wan_i2v = WanI2VNode(services["wan_i2v_url"], services["api_key"])
+        self.video_concat = VideoConcatNode(services["video_concat_url"], services["api_key"])
         
-        input_files = {}
-        try:
-            download_tasks = []
-            for idx, input_item in enumerate(job_state.input):
-                # Check cache first
-                cached_path = input_file_manager.get_cached_file(input_item["url"])
-                if cached_path:
-                    input_files[f"input_{idx}"] = cached_path
-                    continue
-                
-                # Prepare download task
-                file_ext = os.path.splitext(input_item["url"])[1] or ".bin"
-                local_path = f"storage/inputs/{job_id}_{idx}{file_ext}"
-                task = asyncio.create_task(
-                    downloader.download(input_item["url"], local_path, job_id)
-                )
-                download_tasks.append((idx, task))
-            
-            # Wait for all downloads to complete
-            for idx, task in download_tasks:
-                try:
-                    downloaded_path = await task
-                    # Cache the file
-                    cached_path = await input_file_manager.cache_file(
-                        job_state.input[idx]["url"],
-                        downloaded_path
-                    )
-                    input_files[f"input_{idx}"] = cached_path
-                except Exception as e:
-                    raise Exception(f"Failed to download input {idx}: {str(e)}")
-            
-            return input_files
-            
-        except Exception as e:
-            # Clean up on error
-            for path in input_files.values():
-                try:
-                    os.remove(path)
-                except:
-                    pass
-            raise Exception(f"Failed to download input files: {str(e)}")
-    
-    async def _call_service(self, service: str, url: str, headers: Dict[str, str], 
-                           data: Dict[str, Any], job_id: str) -> Dict[str, Any]:
-        """Make async HTTP call to service with rate limiting and retries"""
-        async def _make_request():
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, json=data) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        raise Exception(f"Service call failed with status {response.status}: {error_text}")
-                    return await response.json()
+        # Store base callback URL
+        self.base_callback_url = services["base_callback_url"]
         
-        return await concurrency_manager.execute_with_limits(
-            service,
-            _make_request,
-            job_id=job_id
+        # Build the workflow
+        self.workflow = self._build_workflow()
+    
+    def _get_callback_url(self, service_name: str) -> str:
+        """Get callback URL for a service"""
+        return f"{self.base_callback_url}/{service_name}"
+    
+    def _build_workflow(self):
+        """Build the workflow using WorkflowBuilder"""
+        builder = WorkflowBuilder("image_to_video")
+        
+        # Add QwenVL step for scene generation
+        # QwenVL 是同步服务，不需要回调
+        builder.add_service(
+            "scene_generation",
+            self.qwen_vl,
+            input_mapping={
+                "image_url": "input_image_url",
+                "prompt": "prompt",
+                "system_prompt": "system_prompt"
+            },
+            output_mapping={
+                "scenes": "enhanced_prompt"
+            }
         )
-    
-    async def process_job(self, job_id: str, input_files: Dict[str, str]) -> Dict[str, str]:
-        """Process the job through multiple services"""
-        job_state = job_manager.get_job_state(job_id)
-        if not job_state:
-            raise ValueError(f"Job {job_id} not found")
         
-        try:
-            # Process main input image
-            main_image = input_files["input_0"]
-            width, height, adj_h, adj_w, lat_h, lat_w = await process_image(
-                main_image,
-                job_id,
-                job_state.options
-            )
-            
-            # Call QwenVL for scene generation
-            qwen_response = await self._call_service(
-                "qwen-vl",
-                f"{job_state.options['qwen_vl_url']}/v1/generate",
-                {"X-API-Key": job_state.options["api_key"]},
-                {
-                    "image_url": job_state.input[0]["url"],
-                    "prompt": job_state.options.get("prompt", ""),
-                    "system_prompt": job_state.options.get("system_prompt", "")
+        # Add parallel step for image editing
+        edit_steps = []
+        for i in range(3):  # Maximum 3 scenes
+            step = ServiceStep(
+                f"image_edit_{i}",
+                self.qwen_edit,
+                input_mapping={
+                    "image_url": "input_image_url",
+                    "prompt": f"scenes[{i}]",
+                    "width": "width",
+                    "height": "height"
                 },
-                job_id
-            )
-            
-            # Extract scenes
-            scenes = self._extract_scenes(qwen_response["enhanced_prompt"])
-            
-            # Generate images for each scene in parallel
-            edit_tasks = []
-            for scene in scenes:
-                task = asyncio.create_task(
-                    self._call_service(
-                        "qwen-edit",
-                        f"{job_state.options['qwen_edit_url']}/v1/generate",
-                        {"X-API-Key": job_state.options["api_key"]},
-                        {
-                            "model": "qwen-edit",
-                            "input": [{"type": "image", "url": job_state.input[0]["url"]}],
-                            "options": {
-                                "prompt": scene,
-                                "width": adj_w,
-                                "height": adj_h
-                            }
-                        },
-                        job_id
-                    )
-                )
-                edit_tasks.append(task)
-            
-            edited_images = await asyncio.gather(*edit_tasks)
-            
-            # Generate videos for each image in parallel
-            video_tasks = []
-            for idx, (image, scene) in enumerate(zip(edited_images, scenes)):
-                task = asyncio.create_task(
-                    self._call_service(
-                        "wan-i2v",
-                        f"{job_state.options['wan_i2v_url']}/v1/generate",
-                        {"X-API-Key": job_state.options["api_key"]},
-                        {
-                            "model": "wan-i2v",
-                            "input": [{"type": "image", "url": image["localUrl"][0]}],
-                            "options": {
-                                "prompt": scene,
-                                "width": adj_w,
-                                "height": adj_h,
-                                "duration": job_state.options.get("duration", 5)
-                            }
-                        },
-                        job_id
-                    )
-                )
-                video_tasks.append((idx, task))
-            
-            # Download videos in parallel
-            video_files = []
-            for idx, task in video_tasks:
-                response = await task
-                video_path = f"storage/outputs/{job_id}_video_{idx}.mp4"
-                await downloader.download(response["localUrl"][0], video_path, job_id)
-                video_files.append(video_path)
-            
-            # Concatenate videos
-            concat_response = await self._call_service(
-                "video-concat",
-                f"{job_state.options['video_concat_url']}/v1/generate",
-                {"X-API-Key": job_state.options["api_key"]},
-                {
-                    "model": "concat-upscale",
-                    "input": [{"type": "video", "url": path} for path in video_files],
-                    "options": {
-                        "crf": job_state.options.get("crf", None)
-                    }
+                output_mapping={
+                    f"edited_image_{i}": "output_url"
                 },
-                job_id
+                callback_url=self._get_callback_url("qwen-edit")  # 添加回调 URL
             )
-            
-            # Download final video
-            final_video_path = f"storage/outputs/{job_id}_final.mp4"
-            await downloader.download(
-                concat_response["localUrl"][0],
-                final_video_path,
-                job_id
+            edit_steps.append(step)
+        
+        builder.add_parallel("image_editing", edit_steps)
+        
+        # Add parallel step for video generation
+        video_steps = []
+        for i in range(3):
+            step = ServiceStep(
+                f"video_generation_{i}",
+                self.wan_i2v,
+                input_mapping={
+                    "image_url": f"edited_image_{i}",
+                    "prompt": f"scenes[{i}]",
+                    "width": "width",
+                    "height": "height",
+                    "duration": "duration"
+                },
+                output_mapping={
+                    f"video_{i}": "output_url"
+                },
+                callback_url=self._get_callback_url("wan-i2v")  # 添加回调 URL
             )
-            
-            return {"final": final_video_path}
-            
-        except Exception as e:
-            raise Exception(f"Failed to process job: {str(e)}")
+            video_steps.append(step)
+        
+        builder.add_parallel("video_generation", video_steps)
+        
+        # Add video concatenation step
+        builder.add_service(
+            "video_concatenation",
+            self.video_concat,
+            input_mapping={
+                "video_urls": ["video_0", "video_1", "video_2"],
+                "crf": "crf"
+            },
+            output_mapping={
+                "final_video": "output_url"
+            },
+            callback_url=self._get_callback_url("concat-upscale")  # 添加回调 URL
+        )
+        
+        return builder.build()
     
     def _extract_scenes(self, text: str, max_scenes: int = 3) -> List[str]:
         """Extract scene descriptions from QwenVL output"""
@@ -206,56 +113,38 @@ class ImageToVideoWorkflow(AsyncWorkflow):
                     break
         return scenes
     
-    async def upload_outputs(self, job_id: str, output_files: Dict[str, str]) -> Dict[str, str]:
-        """Upload output files"""
-        job_state = job_manager.get_job_state(job_id)
-        if not job_state:
-            raise ValueError(f"Job {job_id} not found")
+    async def execute(self, job_id: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute the workflow"""
+        # Prepare initial context
+        context = {
+            "job_id": job_id,
+            "input_image_url": input_data["input"][0]["url"],
+            "prompt": input_data["options"].get("prompt", ""),
+            "system_prompt": input_data["options"].get("system_prompt", ""),
+            "width": input_data["options"].get("width", 768),
+            "height": input_data["options"].get("height", 768),
+            "duration": input_data["options"].get("duration", 5),
+            "crf": input_data["options"].get("crf", None)
+        }
         
-        try:
-            urls = {}
-            final_video = output_files["final"]
-            upload_tasks = []
-            
-            # Prepare upload tasks
-            if job_state.options.get("upload_url"):
-                task = asyncio.create_task(
-                    uploader.upload(
-                        final_video,
-                        job_id,
-                        custom_url=job_state.options["upload_url"],
-                        content_type="video/mp4"
-                    )
-                )
-                upload_tasks.append(("aws", task))
-            
-            if job_state.options.get("upload_wasabi_url"):
-                task = asyncio.create_task(
-                    uploader.upload(
-                        final_video,
-                        job_id,
-                        custom_url=job_state.options["upload_wasabi_url"],
-                        content_type="video/mp4"
-                    )
-                )
-                upload_tasks.append(("wasabi", task))
-            
-            # Wait for uploads to complete
-            for provider, task in upload_tasks:
-                try:
-                    urls[provider] = await task
-                except Exception as e:
-                    logger.error(f"Failed to upload to {provider}: {str(e)}", 
-                               extra={"job_id": job_id})
-            
-            # Store locally
-            local_file_id = await output_file_manager.store_file(final_video, job_id)
-            urls["local"] = f"/files/{local_file_id}"
-            
-            return urls
-            
-        except Exception as e:
-            raise Exception(f"Failed to upload output files: {str(e)}")
+        # Execute workflow
+        result = await self.workflow.execute(context)
+        
+        # Return results
+        return {
+            "status": "completed",
+            "output_url": result.get("final_video"),
+            "intermediate_results": {
+                "scenes": self._extract_scenes(result["scenes"]),
+                "edited_images": [
+                    result.get(f"edited_image_{i}") for i in range(3)
+                ],
+                "videos": [
+                    result.get(f"video_{i}") for i in range(3)
+                ]
+            }
+        }
 
 # Create workflow instance
-image_to_video_workflow = ImageToVideoWorkflow()
+def create_workflow(services: Dict[str, Any]) -> ImageToVideoWorkflow:
+    return ImageToVideoWorkflow(services)

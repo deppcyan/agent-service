@@ -1,30 +1,127 @@
-from fastapi import FastAPI, HTTPException, Depends, Header
+import os
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.responses import FileResponse, JSONResponse
 from datetime import datetime, timezone
 import uuid
 from typing import Dict, Any
 
-from .core.logger import logger, pod_id
-from .core.utils import verify_api_key, get_service_url
-from .core.job_manager import job_manager
-from .core.storage.file_manager import output_file_manager
-from .schemas.api import (
+from app.core.logger import logger, pod_id
+from app.core.utils import verify_api_key, init_service_url, GLOBAL_SERVICE_URL
+from app.core.config import config
+from app.core.job_manager import job_manager
+from app.core.storage.file_manager import output_file_manager
+from app.core.callback_manager import callback_manager
+from app.core.concurrency import concurrency_manager
+from app.schemas.api import (
     GenerateRequest, JobResponse, JobState, FileInfo,
     HealthResponse, CancelResponse, PurgeResponse
 )
-from .workflows.image_to_video import image_to_video_workflow
+from app.workflows.image_to_video import create_workflow
 
 app = FastAPI()
 
 # Workflow registry
-WORKFLOWS = {
-    "image-to-video": image_to_video_workflow
+WORKFLOWS = {}
+
+# Service name mapping
+SERVICE_NAMES = {
+    "qwen-vl": "qwen_vl",
+    "qwen-edit": "qwen_edit",
+    "wan-i2v": "wan_i2v",
+    "wan-talk": "wan_talk",
+    "concat-upscale": "video_concat"
 }
 
 @app.on_event("startup")
 async def startup_event():
     """Start background tasks on startup"""
-    await job_manager.start_job_processors()
+    global WORKFLOWS
+    
+    # Initialize service URL
+    init_service_url()
+    base_callback_url = f"{GLOBAL_SERVICE_URL}/webhook"
+    
+    # Configure rate limits and concurrency for services
+    for service_name, service_config in config.services.items():
+        concurrency_manager.configure_rate_limit(
+            service_name,
+            service_config.rate_limit["calls"],
+            service_config.rate_limit["period"]
+        )
+        concurrency_manager.configure_concurrency(
+            service_name,
+            service_config.max_concurrent
+        )
+    
+    # Get API key from environment
+    api_key = os.getenv('DIGEN_API_KEY')
+    if not api_key:
+        raise ValueError("DIGEN_API_KEY environment variable not set")
+    
+    # Initialize workflows with service URLs and callback URLs
+    service_urls = config.get_all_service_urls()
+    WORKFLOWS = {
+        "image-to-video": create_workflow({
+            "qwen_vl_url": service_urls["qwen_vl"],
+            "qwen_edit_url": service_urls["qwen_edit"],
+            "wan_i2v_url": service_urls["wan_i2v"],
+            "video_concat_url": service_urls["video_concat"],
+            "api_key": api_key,
+            "base_callback_url": base_callback_url
+        })
+    }
+    
+@app.post("/webhook/{service_name}")
+async def handle_webhook(
+    service_name: str,
+    request: Request
+):
+    """
+    统一的 webhook 处理接口
+    
+    Args:
+        service_name: 服务名称
+        request: webhook 请求
+    """
+    # 验证服务名称
+    if service_name not in SERVICE_NAMES:
+        raise HTTPException(status_code=400, detail=f"Unknown service: {service_name}")
+    
+    try:
+        # 获取请求数据
+        data = await request.json()
+        
+        # 获取标准化的服务名称
+        normalized_service = SERVICE_NAMES[service_name]
+        
+        # 获取 job ID
+        job_id = data.get("id")
+        if not job_id:
+            raise HTTPException(status_code=400, detail="Missing job ID in webhook data")
+        
+        logger.info(
+            f"Received webhook from {service_name} for job {job_id}",
+            extra={"job_id": job_id}
+        )
+        
+        # 处理回调
+        await callback_manager.handle_callback(normalized_service, data)
+        
+        return {"status": "success"}
+        
+    except ValueError as e:
+        logger.error(
+            f"Invalid webhook data from {service_name}: {str(e)}",
+            extra={"job_id": data.get("id", "unknown")}
+        )
+        raise HTTPException(status_code=400, detail=str(e))
+        
+    except Exception as e:
+        logger.error(
+            f"Error processing webhook from {service_name}: {str(e)}",
+            extra={"job_id": data.get("id", "unknown")}
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/v1/generate", response_model=JobResponse)
 async def generate(
@@ -49,7 +146,7 @@ async def generate(
         webhook_url=request.webhookUrl,
         options=request.options.model_dump(),
         pod_id=pod_id,
-        pod_url=get_service_url()
+        pod_url=GLOBAL_SERVICE_URL  # 使用全局变量
     )
     
     # Add job to queue
@@ -109,4 +206,4 @@ async def ready_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

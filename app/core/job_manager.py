@@ -11,10 +11,6 @@ class JobManager:
     """Manages job queues and states"""
     
     def __init__(self, max_concurrent_jobs: int = 5):
-        # Job queues
-        self.download_queue: asyncio.Queue = asyncio.Queue()
-        self.processing_queue: asyncio.Queue = asyncio.Queue()
-        
         # Job states
         self.job_states: Dict[str, JobState] = {}
         
@@ -27,14 +23,32 @@ class JobManager:
         
         # Task tracking
         self.active_tasks: Dict[str, asyncio.Task] = {}
+        
+        # Workflow registry
+        from ..core.workflow_config import workflow_registry
+        self.workflow_registry = workflow_registry
     
     async def add_job(self, job_state: JobState) -> Dict[str, Any]:
-        """Add a new job to the queue"""
+        """Add a new job and start workflow execution"""
         # Store job state
         self.job_states[job_state.id] = job_state
         
-        # Add to download queue
-        await self.download_queue.put({"job_id": job_state.id})
+        # Create workflow instance
+        workflow = self.workflow_registry.create_workflow(
+            job_state.model,
+            job_state.api_key
+        )
+        
+        if not workflow:
+            await self.update_job_state(job_state.id, {
+                "status": "failed",
+                "error": f"Workflow not found: {job_state.model}"
+            })
+            raise ValueError(f"Workflow not found: {job_state.model}")
+        
+        # Start workflow execution
+        task = asyncio.create_task(self._execute_workflow(job_state.id, workflow, job_state.input))
+        self.active_tasks[job_state.id] = task
         
         # Calculate queue stats
         current_queue_size = len([job for job in self.job_states.values() 
@@ -74,24 +88,34 @@ class JobManager:
                 self.job_stats[job_state.status] += 1
     
     async def cancel_job(self, job_id: str) -> Dict[str, Any]:
-        """Cancel a pending job"""
+        """Cancel a job in any state"""
         if job_id not in self.job_states:
             raise ValueError("Job not found")
             
         job_state = self.job_states[job_id]
-        if job_state.status != "pending":
-            raise ValueError("Can only cancel pending jobs")
+        if job_state.status in ['completed', 'failed', 'cancelled']:
+            raise ValueError(f"Cannot cancel job in {job_state.status} state")
         
-        # Cancel any active task
+        # Cancel active task
         if job_id in self.active_tasks:
-            self.active_tasks[job_id].cancel()
+            task = self.active_tasks[job_id]
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
             del self.active_tasks[job_id]
         
-        # Update state and send webhook
-        await self.update_job_state(job_id, {
+        # Update state with cancellation time
+        updates = {
             "status": "cancelled",
-            "error": "Job cancelled by user"
-        })
+            "error": "Job cancelled by user",
+            "completed_at": datetime.now(timezone.utc)
+        }
+        await self.update_job_state(job_id, updates)
+        
+        # Send cancellation webhook
+        await self._send_webhook(job_id)
         
         # Remove from states
         del self.job_states[job_id]
@@ -165,82 +189,56 @@ class JobManager:
             }
         }
     
-    async def start_job_processors(self) -> None:
-        """Start background job processors"""
-        asyncio.create_task(self._process_download_queue())
-        for _ in range(self.max_concurrent_jobs):
-            asyncio.create_task(self._process_job_queue())
-    
-    async def _process_download_queue(self) -> None:
-        """Process download queue"""
-        while True:
-            try:
-                job_info = await self.download_queue.get()
-                job_id = job_info["job_id"]
-                
-                # Create task for downloading
-                task = asyncio.create_task(self._handle_download(job_id))
-                self.active_tasks[job_id] = task
-                
-                # Wait for download to complete
+    async def _execute_workflow(self, job_id: str, workflow: Any, input_data: Dict[str, Any]) -> None:
+        """Execute workflow for a job"""
+        try:
+            # Update job status to processing
+            await self.update_job_state(job_id, {"status": "processing"})
+            
+            # Execute workflow
+            async with self.processing_semaphore:
                 try:
-                    await task
+                    result = await workflow.execute(job_id, input_data)
+                    
+                    # Update job state with results and trigger webhook
+                    updates = {
+                        "status": "completed",
+                        "output_url": result.get("output_url"),
+                        "intermediate_results": result.get("intermediate_results", {}),
+                        "completed_at": datetime.now(timezone.utc)
+                    }
+                    await self.update_job_state(job_id, updates)
+                    await self._send_webhook(job_id)  # 成功时发送回调
+                    
                 except asyncio.CancelledError:
-                    logger.info(f"Download cancelled for job {job_id}", 
+                    logger.info(f"Workflow execution cancelled for job {job_id}", 
                               extra={"job_id": job_id})
+                    # 取消时的状态更新和回调在 cancel_job 中处理
+                    raise
+                    
                 except Exception as e:
-                    logger.error(f"Download failed: {str(e)}", 
-                               extra={"job_id": job_id})
-                finally:
-                    if job_id in self.active_tasks:
-                        del self.active_tasks[job_id]
-                    
-                self.download_queue.task_done()
+                    error_msg = f"Workflow execution failed: {str(e)}"
+                    logger.error(error_msg, extra={"job_id": job_id})
+                    # 更新失败状态并发送回调
+                    updates = {
+                        "status": "failed",
+                        "error": error_msg,
+                        "completed_at": datetime.now(timezone.utc)
+                    }
+                    await self.update_job_state(job_id, updates)
+                    await self._send_webhook(job_id)  # 失败时发送回调
+                    raise
                 
-            except Exception as e:
-                logger.error(f"Error in download queue processor: {str(e)}")
-                await asyncio.sleep(1)
-    
-    async def _process_job_queue(self) -> None:
-        """Process job queue"""
-        while True:
-            try:
-                job_info = await self.processing_queue.get()
-                job_id = job_info["job_id"]
-                
-                async with self.processing_semaphore:
-                    # Create task for processing
-                    task = asyncio.create_task(self._handle_processing(job_id))
-                    self.active_tasks[job_id] = task
-                    
-                    # Wait for processing to complete
-                    try:
-                        await task
-                    except asyncio.CancelledError:
-                        logger.info(f"Processing cancelled for job {job_id}", 
-                                  extra={"job_id": job_id})
-                    except Exception as e:
-                        logger.error(f"Processing failed: {str(e)}", 
-                                   extra={"job_id": job_id})
-                    finally:
-                        if job_id in self.active_tasks:
-                            del self.active_tasks[job_id]
-                
-                self.processing_queue.task_done()
-                
-            except Exception as e:
-                logger.error(f"Error in job queue processor: {str(e)}")
-                await asyncio.sleep(1)
-    
-    async def _handle_download(self, job_id: str) -> None:
-        """Handle file downloads for a job"""
-        # This will be implemented in the workflow
-        pass
-    
-    async def _handle_processing(self, job_id: str) -> None:
-        """Handle job processing"""
-        # This will be implemented in the workflow
-        pass
+        except asyncio.CancelledError:
+            # Job was cancelled, state and webhook already handled in cancel_job
+            pass
+        except Exception as e:
+            # Error already logged and webhook sent
+            pass
+        finally:
+            # Clean up task tracking
+            if job_id in self.active_tasks:
+                del self.active_tasks[job_id]
 
 # Create global job manager instance
 job_manager = JobManager()

@@ -179,3 +179,229 @@ webhook回调
 3. 输入关键帧图片以及提示词，调用wan-i2v服务，来生成视频。
 4. 获取上述视频片段然后调用合并视频服务，来生成最终视频。
 5. 通过file_manager生成local地址，如果有s3地址，则上传到对应的s3地址上，然后回调webhook。
+
+
+# 添加文件下载端点
+@app.get("/files/{file_id}")
+async def get_file(file_id: str):
+    """获取生成的文件"""
+    file_path = file_manager.get_file_path(file_id)
+    if not file_path:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "File not found or expired"}
+        )
+    
+    return FileResponse(file_path)
+
+# 添加文件信息端点
+@app.get("/files/{file_id}/info")
+async def get_file_info(file_id: str):
+    """获取文件信息"""
+    file_info = file_manager.get_file_info(file_id)
+    if not file_info:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "File not found or expired"}
+        )
+    
+    return {
+        "file_id": file_id,
+        "created_at": file_info['created_at'].isoformat(),
+        "job_id": file_info['job_id'],
+        "filename": file_info.get('filename', f"{file_id}.mp4"),  # 返回原始文件名，如果没有则使用默认值
+        "expires_at": file_manager.get_expiration_time(file_id).isoformat()
+    }
+
+# Update the health endpoint to include job statistics
+@app.get("/health")
+async def health_check():
+    # Get real-time queue stats
+    current_queue_size = job_queue.qsize()
+    current_in_progress = len([job for job in job_states.values() if job['status'] == 'processing'])
+    try:
+        comfy_response = await call_comfyui("system_stats", retries=1, job_id="system")
+        if comfy_response is None:
+            return JSONResponse(status_code=503, content={
+                "status": "error",
+                "jobs": {
+                    "completed": job_stats["completed"],
+                    "failed": job_stats["failed"],
+                    "inProgress": current_in_progress,
+                    "inQueue": current_queue_size
+                }
+            })
+    except Exception as e:
+        return JSONResponse(status_code=503, content={
+            "status": "error",
+            "jobs": {
+                "completed": job_stats["completed"],
+                "failed": job_stats["failed"],
+                "inProgress": current_in_progress,
+                "inQueue": current_queue_size
+            }
+        })
+    return {
+        "status": "ok",
+        "jobs": {
+            "completed": job_stats["completed"],
+            "failed": job_stats["failed"],
+            "inProgress": current_in_progress,
+            "inQueue": current_queue_size
+        }
+    }
+
+# Add purge-queue endpoint
+@app.post("/purge-queue")
+async def purge_queue(api_key: str = Depends(verify_api_key)):
+    # Count pending jobs
+    pending_jobs = [job_id for job_id, job in job_states.items() 
+                   if job['status'] == 'pending']
+    removed_count = len(pending_jobs)
+    
+    # Send webhook for each pending job before removing
+    for job_id in pending_jobs:
+        if job_id in job_states:
+            job = job_states[job_id]
+            # 更新任务状态为失败并发送webhook
+            job['status'] = 'failed'
+            job['error'] = 'Job cancelled by purge-queue operation'
+            await send_error_webhook(job_id, "Job cancelled by purge-queue operation")
+            # 删除任务
+            del job_states[job_id]
+    
+    return {
+        "removed": removed_count,
+        "status": "completed"
+    }
+
+# Add cancel endpoint
+@app.post("/cancel/{job_id}")
+async def cancel_job(
+    job_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    if job_id not in job_states:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Job not found"}
+        )
+    
+    job = job_states[job_id]
+    if job['status'] != "pending":
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Can only cancel pending jobs"}
+        )
+    
+    try:
+        # 清理输入文件（异步）
+        input_files = job.get('input_files', {})
+        for input_path in input_files.values():
+            try:
+                await aiofiles.os.remove(input_path)
+                logger.info(f"Removed input file for cancelled job: {input_path}", extra={"job_id": job_id})
+            except FileNotFoundError:
+                pass  # 文件不存在，忽略
+            except Exception as e:
+                logger.warning(f"Failed to remove input file for cancelled job {input_path}: {str(e)}", extra={"job_id": job_id})
+    except Exception as e:
+        logger.error(f"Error cleaning up input files for cancelled job: {str(e)}", extra={"job_id": job_id})
+    
+    # Remove the job from job_states
+    del job_states[job_id]
+    
+    return {
+        "status": "cancelled",
+        "job_id": job_id
+    }
+
+# Add ready endpoint
+@app.get("/ready")
+async def ready_check():
+    # Define your readiness criteria here
+    # For example, maybe the service is ready if ComfyUI is accessible
+    # and the queue isn't too full
+    try:
+        # Check if ComfyUI is accessible
+        comfy_response = await call_comfyui("system_stats", retries=1, job_id="system")
+        
+        # Service is ready if ComfyUI is accessible
+        is_ready = comfy_response is not None
+        
+        return {
+            "ready": is_ready
+        }
+    except Exception as e:
+        logger.error(f"Ready check failed: {str(e)}", extra={"job_id": "system"})
+        return {
+            "ready": False
+        }
+
+@app.post("/v1/generate")
+async def generate(
+    request: GenerateRequest,
+    api_key: str = Depends(verify_api_key)
+):
+    job_id = str(uuid.uuid4())
+    logger.info(f"New request: {request.model_dump_json()}", extra={"job_id": job_id})
+    logger.info("Received generate request", extra={"job_id": job_id})
+
+    # Validate loras - maximum 1
+    if request.options.loras and len(request.options.loras) > 1:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Maximum 1 lora allowed"}
+        )
+
+    # Process model_name at request time
+    model_name = request.model
+    if model_name is None or model_name not in MODEL_CONFIGS:
+        default_model = get_default_model_name()
+        logger.info(f"Model '{model_name}' not found, use default model '{default_model}'", extra={"job_id": job_id})
+        model_name = default_model
+    
+    # Lora workflow/model name logic
+    loras = request.options.loras
+    lora_count = len(loras) if loras else 0
+    if lora_count == 1:
+        model_name = f"{model_name}-lora1"
+    
+    if model_name not in MODEL_CONFIGS:
+        logger.warning(f"Model {model_name} not found", extra={"job_id": job_id})
+        return JSONResponse(
+            status_code=400,
+            content={"error": f"Model {model_name} not found"}
+        )
+
+    job = {
+        "id": job_id,
+        "created_at": datetime.now(timezone.utc),
+        "status": "pending",
+        "model": model_name,  # Use the processed model_name
+        "input": [input_item.model_dump() for input_item in request.input],
+        "webhook_url": request.webhookUrl,
+        "options": request.options.model_dump(),
+        "output_url": None,
+        "local_url": None,  # 添加本地URL字段
+        "error": None
+    }
+
+    job_states[job_id] = job
+
+    # 计算当前队列长度（包括所有未完成的任务）
+    current_queue_size = len([job for job in job_states.values() if job['status'] in ['pending', 'processing']])
+    
+    # 计算预估等待时间
+    estimated_wait_time = calculate_wait_time(job_states)
+
+    # 将任务添加到下载队列，而不是直接添加到生成队列
+    await download_queue.put({"job_id": job_id})
+
+    return {
+        "id": job_id,
+        "pod_id": pod_id,
+        "queuePosition": current_queue_size,
+        "estimatedWaitTime": estimated_wait_time,
+        "pod_url": get_service_url()
+    }

@@ -8,6 +8,52 @@ import numpy as np
 from fastapi import HTTPException, Header
 from .logger import logger, pod_id, gpu_vendor, novita_region
 
+# Global service URL
+GLOBAL_SERVICE_URL: str = None
+
+def init_service_url() -> str:
+    """
+    Initialize global service URL
+    
+    Returns:
+        str: Service URL
+    """
+    global GLOBAL_SERVICE_URL
+    
+    if GLOBAL_SERVICE_URL is not None:
+        return GLOBAL_SERVICE_URL
+    
+    # Priority use DIGEN_PROXY_URL
+    if os.getenv('DIGEN_PROXY_URL'):
+        GLOBAL_SERVICE_URL = os.getenv('DIGEN_PROXY_URL').rstrip('/')
+        return GLOBAL_SERVICE_URL
+    
+    # Get port configuration
+    port = os.getenv('DIGEN_SERVICE_PORT', '8000')
+    
+    # Generate URL based on gpu_vendor
+    if gpu_vendor == 'runpod':
+        GLOBAL_SERVICE_URL = f"https://{pod_id}-{port}.proxy.runpod.net"
+    elif gpu_vendor == 'novita':
+        GLOBAL_SERVICE_URL = f"https://{pod_id}-{port}.{novita_region}.gpu-instance.novita.ai"
+    else:
+        # Local address
+        local_ip = os.getenv('LOCAL_IP') or get_local_ip()
+        GLOBAL_SERVICE_URL = f"http://{local_ip}:{port}"
+    
+    return GLOBAL_SERVICE_URL
+
+def get_service_url() -> str:
+    """
+    Get service URL (uses cached value)
+    
+    Returns:
+        str: Complete service URL
+    """
+    if GLOBAL_SERVICE_URL is None:
+        return init_service_url()
+    return GLOBAL_SERVICE_URL
+
 def get_local_ip() -> str:
     """
     Get local IP address
@@ -147,35 +193,6 @@ async def send_webhook(url: str, payload: dict) -> bool:
         except:
             return False
 
-def get_service_url() -> str:
-    """
-    Generate service URL based on different conditions
-    
-    Returns:
-        str: Complete service URL
-        
-    Environment variables:
-        DIGEN_PROXY_URL: Direct proxy URL (optional)
-        DIGEN_SERVICE_PORT: Service port (optional, default 8000)
-        LOCAL_IP: Local IP address (optional, default 0.0.0.0)
-    """
-    # Priority use DIGEN_PROXY_URL
-    if os.getenv('DIGEN_PROXY_URL'):
-        return os.getenv('DIGEN_PROXY_URL').rstrip('/')
-    
-    # Get port configuration
-    port = os.getenv('DIGEN_SERVICE_PORT', '8000')
-    
-    # Generate URL based on gpu_vendor
-    if gpu_vendor == 'runpod':
-        return f"https://{pod_id}-{port}.proxy.runpod.net"
-    elif gpu_vendor == 'novita':
-        return f"https://{pod_id}-{port}.{novita_region}.gpu-instance.novita.ai"
-    else:
-        # Local address
-        local_ip = os.getenv('LOCAL_IP') or get_local_ip()
-        return f"http://{local_ip}:{port}"
-
 def get_local_file_url(file_id: str) -> str:
     """
     Generate local file access URL
@@ -186,8 +203,7 @@ def get_local_file_url(file_id: str) -> str:
     Returns:
         str: Complete file access URL
     """
-    base_url = get_service_url()
-    return f"{base_url}/files/{file_id}"
+    return f"{GLOBAL_SERVICE_URL}/files/{file_id}"
 
 expected_api_key = os.getenv('DIGEN_API_KEY', "e7fca923-c9f0-4874-a8f6-b1b4a22ef28a")
 async def verify_api_key(x_api_key: str = Header(...)):
