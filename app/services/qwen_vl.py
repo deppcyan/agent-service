@@ -6,7 +6,7 @@ class QwenVLNode(ServiceNode):
     def _get_model_name(self) -> str:
         return "qwen-vl"
 
-    async def generate(self, input_data: Dict[str, Any], webhook_url: Optional[str] = None) -> ServiceResponse:
+    async def generate(self, input_data: Dict[str, Any], webhook_url: Optional[str] = None) -> Dict[str, Any]:
         headers = {"X-API-Key": self.api_key, "Content-Type": "application/json"}
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -19,13 +19,7 @@ class QwenVLNode(ServiceNode):
                 }
             )
             response.raise_for_status()
-            data = response.json()
-            return ServiceResponse(
-                id=str(data.get("id", "")),
-                status="success",
-                local_url=None,
-                error=None
-            )
+            return response.json()
 
     async def cancel(self, job_id: str) -> Dict[str, Any]:
         headers = {"X-API-Key": self.api_key}
