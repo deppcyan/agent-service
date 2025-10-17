@@ -7,7 +7,7 @@ from typing import Dict, Any
 
 from app.core.logger import logger, pod_id
 from app.core.utils import verify_api_key, init_service_url, GLOBAL_SERVICE_URL
-from app.core.config import config
+from app.config.services import config
 from app.core.job_manager import job_manager
 from app.core.storage.file_manager import output_file_manager
 from app.core.callback_manager import callback_manager

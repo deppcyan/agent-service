@@ -4,6 +4,7 @@ import yaml
 import os
 from app.core.base import ServiceNode, Workflow
 from app.services import QwenVLNode, WanI2VNode, QwenEditNode, VideoConcatNode
+from app.config.services import config as service_config
 
 class NodeConfig(BaseModel):
     type: str
@@ -42,8 +43,6 @@ class WorkflowRegistry:
     
     def create_workflow(self, name: str) -> Optional[Workflow]:
         """Create a workflow instance from configuration"""
-        from app.core.config import config as service_config
-        
         workflow_config = self.workflows.get(name)
         if not workflow_config:
             return None

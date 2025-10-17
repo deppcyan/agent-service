@@ -10,8 +10,8 @@ class ServiceConfig(BaseModel):
     rate_limit: Dict[str, float]
     max_concurrent: int
 
-class Config:
-    """Configuration manager"""
+class ServicesConfig:
+    """Services configuration manager"""
     
     def __init__(self, config_dir: str = "config"):
         self.config_dir = config_dir
@@ -76,9 +76,9 @@ class Config:
         }
 
 @lru_cache()
-def get_config() -> Config:
+def get_config() -> ServicesConfig:
     """Get configuration singleton"""
-    return Config()
+    return ServicesConfig()
 
 # Create global config instance
 config = get_config()

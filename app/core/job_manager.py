@@ -25,7 +25,7 @@ class JobManager:
         self.active_tasks: Dict[str, asyncio.Task] = {}
         
         # Workflow registry
-        from app.core.workflow_config import workflow_registry
+        from app.config.workflows import workflow_registry
         self.workflow_registry = workflow_registry
     
     async def add_job(self, job_state: JobState) -> Dict[str, Any]:
