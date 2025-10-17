@@ -55,7 +55,7 @@ def setup_logger(name: str = "agent") -> logging.Logger:
         return logger
     
     # Configure logging
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     
     # Clear existing handlers
     logger.handlers.clear()
@@ -67,11 +67,11 @@ def setup_logger(name: str = "agent") -> logging.Logger:
 
     # Console handler
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)
 
     # File handler with rotation
     file_handler = RotatingFileHandler("log/app.log", maxBytes=5*1024*1024, backupCount=5)
-    file_handler.setLevel(logging.INFO)
+    file_handler.setLevel(logging.DEBUG)
 
     # Formatter
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - [%(pod_id)s][%(job_id)s] - %(message)s')

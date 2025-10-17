@@ -36,18 +36,66 @@ class AsyncServiceNode(ABC):
         }
         
         async def _request():
+            logger.debug("Creating HTTP session", 
+                       extra={"job_id": job_id, "service": self.service_name})
             async with aiohttp.ClientSession() as session:
+                url = f"{self.api_url}/v1/generate"
+                import json
+                
+                # Log request details
+                logger.info(
+                    f"Making POST request to {url}",
+                    extra={
+                        "job_id": job_id,
+                        "url": url,
+                        "service": self.service_name
+                    }
+                )
+                # Log request JSON data
+                logger.info(
+                    "Request JSON data:\n" + json.dumps(data, indent=2, ensure_ascii=False),
+                    extra={
+                        "job_id": job_id,
+                        "service": self.service_name
+                    }
+                )
+                
                 async with session.post(
-                    f"{self.api_url}/v1/generate",
+                    url,
                     headers=headers,
                     json=data
                 ) as response:
                     if response.status != 200:
                         error_text = await response.text()
+                        logger.error(
+                            f"Service request failed with status {response.status}\nError: {error_text}",
+                            extra={
+                                "job_id": job_id,
+                                "service": self.service_name,
+                                "status": response.status
+                            }
+                        )
                         raise Exception(
                             f"Service call failed with status {response.status}: {error_text}"
                         )
-                    return await response.json()
+                    
+                    response_data = await response.json()
+                    logger.info(
+                        f"Successfully received response (status: {response.status})",
+                        extra={
+                            "job_id": job_id,
+                            "service": self.service_name
+                        }
+                    )
+                    # Log response JSON data
+                    logger.info(
+                        "Response JSON data:\n" + json.dumps(response_data, indent=2, ensure_ascii=False),
+                        extra={
+                            "job_id": job_id,
+                            "service": self.service_name
+                        }
+                    )
+                    return response_data
         
         return await _request()
     
@@ -67,8 +115,13 @@ class AsyncServiceNode(ABC):
             Dict containing service response
         """
         try:
+            logger.info(f"Starting generation for service {self.service_name}", 
+                       extra={"job_id": job_id, "service": self.service_name})
+            
             # Register callback handler
             if callback_url:
+                logger.debug(f"Registering callback handler for URL: {callback_url}", 
+                           extra={"job_id": job_id, "callback_url": callback_url})
                 callback_manager.register_handler(
                     self.service_name,
                     job_id,
@@ -76,18 +129,35 @@ class AsyncServiceNode(ABC):
                 )
             
             # Prepare and send request
+            logger.debug("Preparing request data", extra={"job_id": job_id})
             request_data = self._prepare_request(input_data, callback_url)
+            
+            logger.info("Sending request to service", 
+                       extra={"job_id": job_id, "service": self.service_name})
             response = await self._make_request(request_data, job_id)
+            logger.debug("Received response from service", 
+                        extra={"job_id": job_id, "service": self.service_name})
             
             # If no callback URL, return response directly
             if not callback_url:
+                logger.info("Generation completed successfully (no callback)", 
+                          extra={"job_id": job_id, "service": self.service_name})
                 return response
             
             # Wait for callback
             try:
+                logger.info("Waiting for callback", 
+                          extra={"job_id": job_id, "service": self.service_name})
                 callback_data = await callback_manager.wait_for_callback(job_id, timeout)
-                return await self._handle_callback(callback_data)
+                logger.debug("Received callback data", 
+                           extra={"job_id": job_id, "service": self.service_name})
+                result = await self._handle_callback(callback_data)
+                logger.info("Generation completed successfully (with callback)", 
+                          extra={"job_id": job_id, "service": self.service_name})
+                return result
             except Exception as e:
+                logger.error(f"Callback handling failed: {str(e)}", 
+                           extra={"job_id": job_id, "service": self.service_name})
                 callback_manager.unregister_handler(job_id)
                 raise Exception(f"Callback failed: {str(e)}")
             
@@ -98,18 +168,64 @@ class AsyncServiceNode(ABC):
     async def cancel(self, job_id: str) -> Dict[str, Any]:
         """Cancel a running job"""
         try:
+            logger.info(f"Attempting to cancel job for service {self.service_name}", 
+                       extra={"job_id": job_id, "service": self.service_name})
+            
             headers = {"X-API-Key": self.api_key}
+            logger.debug("Creating HTTP session for cancel request", 
+                       extra={"job_id": job_id, "service": self.service_name})
+            
             async with aiohttp.ClientSession() as session:
+                url = f"{self.api_url}/cancel/{job_id}"
+                import json
+                
+                # Log request details
+                logger.info(
+                    f"Making DELETE request to {url}",
+                    extra={
+                        "job_id": job_id,
+                        "url": url,
+                        "service": self.service_name
+                    }
+                )
+                
                 async with session.delete(
-                    f"{self.api_url}/cancel/{job_id}",
+                    url,
                     headers=headers
                 ) as response:
                     if response.status != 200:
                         error_text = await response.text()
+                        logger.error(
+                            f"Cancel request failed with status {response.status}\nError: {error_text}",
+                            extra={
+                                "job_id": job_id,
+                                "service": self.service_name,
+                                "status": response.status
+                            }
+                        )
                         raise Exception(
                             f"Cancel failed with status {response.status}: {error_text}"
                         )
-                    return await response.json()
+                    
+                    response_data = await response.json()
+                    logger.info(
+                        f"Job cancelled successfully (status: {response.status})",
+                        extra={
+                            "job_id": job_id,
+                            "service": self.service_name
+                        }
+                    )
+                    # Log response JSON data
+                    logger.info(
+                        "Response JSON data:\n" + json.dumps(response_data, indent=2, ensure_ascii=False),
+                        extra={
+                            "job_id": job_id,
+                            "service": self.service_name
+                        }
+                    )
+                    return response_data
+                    
         except Exception as e:
-            logger.error(f"Cancel failed: {str(e)}", extra={"job_id": job_id})
+            logger.error(f"Cancel failed: {str(e)}", 
+                        extra={"job_id": job_id, "service": self.service_name})
             raise

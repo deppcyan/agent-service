@@ -25,7 +25,7 @@ class ImageToVideoWorkflow(AsyncWorkflow):
     
     def _create_scene_generation_step(self) -> ServiceStep:
         """创建场景生成步骤"""
-        return ServiceStep(
+        step = ServiceStep(
             "scene_generation",
             self.services["qwen_vl"],
             input_mapping={
@@ -37,6 +37,19 @@ class ImageToVideoWorkflow(AsyncWorkflow):
                 "scenes": "enhanced_prompt"
             }
         )
+        
+        # 添加日志记录
+        original_execute = step.execute
+        async def execute_with_logging(context: Dict[str, Any]) -> Dict[str, Any]:
+            self._log_request(context["job_id"], "scene_generation", {
+                "input": {k: context.get(v) for k, v in step.input_mapping.items()}
+            })
+            result = await original_execute(context)
+            self._log_response(context["job_id"], "scene_generation", result)
+            return result
+            
+        step.execute = execute_with_logging
+        return step
     
     def _create_image_editing_steps(self, scene_count: int) -> List[ServiceStep]:
         """根据场景数量创建图片编辑步骤"""
@@ -56,6 +69,19 @@ class ImageToVideoWorkflow(AsyncWorkflow):
                 },
                 callback_url=self._get_callback_url("qwen-edit")
             )
+            
+            # 添加日志记录
+            original_execute = step.execute
+            step_name = f"image_edit_{i}"
+            async def execute_with_logging(context: Dict[str, Any], name=step_name) -> Dict[str, Any]:
+                self._log_request(context["job_id"], name, {
+                    "input": {k: context.get(v) for k, v in step.input_mapping.items()}
+                })
+                result = await original_execute(context)
+                self._log_response(context["job_id"], name, result)
+                return result
+                
+            step.execute = execute_with_logging
             steps.append(step)
         return steps
     
@@ -78,6 +104,19 @@ class ImageToVideoWorkflow(AsyncWorkflow):
                 },
                 callback_url=self._get_callback_url("wan-i2v")
             )
+            
+            # 添加日志记录
+            original_execute = step.execute
+            step_name = f"video_generation_{i}"
+            async def execute_with_logging(context: Dict[str, Any], name=step_name) -> Dict[str, Any]:
+                self._log_request(context["job_id"], name, {
+                    "input": {k: context.get(v) for k, v in step.input_mapping.items()}
+                })
+                result = await original_execute(context)
+                self._log_response(context["job_id"], name, result)
+                return result
+                
+            step.execute = execute_with_logging
             steps.append(step)
         return steps
     
@@ -101,7 +140,7 @@ class ImageToVideoWorkflow(AsyncWorkflow):
         )
         
         # 添加视频拼接步骤
-        builder.add_service(
+        concat_step = ServiceStep(
             "video_concatenation",
             self.services["video_concat"],
             input_mapping={
@@ -113,6 +152,19 @@ class ImageToVideoWorkflow(AsyncWorkflow):
             },
             callback_url=self._get_callback_url("concat-upscale")
         )
+        
+        # 添加日志记录
+        original_execute = concat_step.execute
+        async def execute_with_logging(context: Dict[str, Any]) -> Dict[str, Any]:
+            self._log_request(context["job_id"], "video_concatenation", {
+                "input": {k: context.get(v) for k, v in concat_step.input_mapping.items()}
+            })
+            result = await original_execute(context)
+            self._log_response(context["job_id"], "video_concatenation", result)
+            return result
+            
+        concat_step.execute = execute_with_logging
+        builder.add_service(concat_step)
         
         return builder.build()
     
@@ -140,6 +192,13 @@ class ImageToVideoWorkflow(AsyncWorkflow):
             "crf": options.get("crf", None)
         }
         
+        # 记录工作流开始和输入参数
+        self._log_request(job_id, "workflow_start", {
+            "input_data": input_data,
+            "options": options,
+            "context": context
+        })
+        
         # 根据输入参数确定场景数量
         scene_count = options.get("scene_count", 3)
         
@@ -150,6 +209,9 @@ class ImageToVideoWorkflow(AsyncWorkflow):
         self._task = self.workflow.execute(context)
         result = await self._task
         self._task = None
+        
+        # 记录工作流结果
+        self._log_response(job_id, "workflow_complete", result)
         
         # 返回结果
         return {
