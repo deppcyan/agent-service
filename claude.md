@@ -26,8 +26,8 @@ Content-Type: application/json
     "seed": 979894236
 }
 
-2. Wan I2V + MMAudio 服务， model name: wan-i2v, 输入的话，是图片+prompt
-3. Wan InfiniteTalk + VibeVoice服务, model name: wan-talk， 输入的话，是图片+prompt
+2. Wan I2V 服务， model name: wan-i2v, 输入的话，是图片+prompt
+3. Wan InfiniteTalk + VibeVoice服务, model name: wan-talk， 输入的话，是图片 prompt audio_prompt
 4. Qwen Edit 图片编辑服务, model name: qwen-edit，输入的话，是图片+prompt
 
 生成接口如下
@@ -102,30 +102,19 @@ X-API-Key: xxx
 Content-Type: application/json
 
 {
-    "model": "watermarkv1.0",
+    "model": "concat-upscale",
     "input": [
         {
-            "type": "clip",
+            "type": "video",
             "url": "string"
         },
         {
-            "type": "clip",
+            "type": "video",
             "url": "string"
         }
     ],
     "options": {
-        "add_watermark": "true",
-        "upload_url": "https://digen-asset.s3.us-west-1.amazonaws.com/audio/173325_1740704056423951010_a959611e-7014-4b9a-94d2-b00be07b985b.mp4"，
-        "original_video_url": "https://digen-asset.s3.us-west-1.amazonaws.com/audio/173325_1740704056423951010_a959611e-7014-4b9a-94d2-b00be07b985b.mp4"
-        "set_crf": true,
-        "crf_value": 28,
-        "upload_wasabi_url": "https://s3.us-west-1.wasabisys.com/gen-bp/test6.mp4",
-        "watermark_url": "", // 自定义的水印图片的s3地址
-        "watermark_width": 333, // 自定义水印图片在视频中展示的宽
-        "watermark_height": 39,  // 自定义水印图片在视频中展示的高
-        "watermark_max_ratio": 0.5, // 水印图片的宽占视频宽的最大比例
-        "first_frame_url": "", // 首帧生成的s3地址，如果没有地址的话，默认不生成首帧
-        "first_frame_max_size": 1024 // 首帧图片生成的最大的边长
+        
     },
     "webhookUrl": "string"
 }
@@ -133,24 +122,60 @@ Content-Type: application/json
 webhook回调
 
 {
-    "id": "string",
-    "createdAt": 1739950001.2138739,
-    "status": "completed",
-    "model": "string",
-    "input": [
-        {
-            "type": "string",
-            "url": "string"
-        }
-    ],
-    "webhookUrl": "string",
-    "options": {
-        "output_format": "string"，
-    },
-    "stream": true,
-    "outputUrl": "string",
-    "outputWasabiUrl": "string", //上传失败为空
-    "firstFrameUrl": "string", //返回的首帧地址
-    "error": null
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "createdAt": "2024-03-21T10:00:00Z",
+  "status": "completed",
+  "model": "qwen-i2v",
+  "webhookUrl": "https://your-webhook-url.com",
+  "options": {
+    // 原始请求中的 options
+  },
+  "stream": true,
+  "localUrl": [
+    "https://xxx.mp4"
+  ]
+  "error": null
 }
 
+----
+实现了上述节点的纹身，workflow的整个工作流程是：
+1. 将用户输入的图片以及prompt，调用qwen vl模型，system prompt如下：
+【输入方式】：参考图 + 文本描述  
+【延展目标】：基于上一张图的画面风格、人物外形、光影氛围、镜头语言，生成下一张分镜图，使得剧情延续
+
+保持人物外观一致  
+色调光影与参考图统一  
+背景元素延续，不突变  
+构图具备电影感（景别 / 光影 / 空间层次）
+
+镜头类型（特写 / 中景 / 远景 / 俯拍 / 跟拍 / 环绕 / 侧移 / 拉远）  
+镜头运动节奏（慢推 / 快切 / 手持感）  
+
+人物发色、身形不变  
+服饰延续衔接，不跳变  
+动作表情是上一个镜头的自然推进  
+背景环境连续递进
+
+高清画面  
+电影级光影  
+真实材质  
+无噪点无畸变  
+可作为下一张分镜生成基础
+
+输出时以Next Scene:开头，后面马上接文字。每一段文字是连续的，没有特殊符号，没有多余的解释，每一段文字100字左右，直接输出内容
+
+输出话会是这样的
+
+{
+    "status": "success",
+    "enhanced_prompt": "Next Scene: 镜头切换到一片战场，士兵们穿着厚重的军装，手持步枪，表情严肃。天空阴沉，远处炮火连天，烟雾弥漫。\n\nNext Scene: 战斗激烈，士兵们在战壕中匍匐前进，子弹横飞，血迹斑斑。士兵们的表情坚毅，眼神中透露出对胜利的渴望。\n\nNext Scene: 一名士兵在夜幕中潜行，月光洒在沙地上，他手持手电筒，照亮前方的道路。背景中传来沉重的脚步声，敌人正在逼近。\n\nNext Scene: 士兵们在废墟中坚守阵地，枪声不断，弹片四溅。他们互相鼓励，用血肉之躯筑起防线，对抗着敌人的进攻。\n\nNext Scene: 在一个废弃的工厂内，几名士兵正在进行紧急部署。指挥官下达命令，士兵们迅速行动，准备反击。",
+    "original_prompt": "在二战中战斗的故事",
+    "processing_time": 3.586752,
+    "seed": 1218481370
+}
+---
+解析Next Scene:，然后提取出来，作为关键帧的提示词，最多提取3帧。
+2. 根据关键帧的系统提示词调用Qwen Edit来生图，输入是用户输入的图片以及提取出来的提示词，输出是对应的图片。
+3. 输入关键帧图片以及提示词，调用wan-i2v服务，来生成视频。
+4. 获取上述视频片段然后调用合并视频服务，来生成最终视频。
+5. 通过file_manager生成local地址，如果有s3地址，则上传到对应的s3地址上，然后回调webhook。

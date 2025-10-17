@@ -1,0 +1,65 @@
+workflows:
+  - name: image_to_video
+    description: "Generate video from image using AI services"
+    nodes:
+      - type: qwen-vl
+        api_url: ${QWEN_VL_URL}
+        api_key: ${API_KEY}
+        options: {}
+      - type: wan-i2v
+        api_url: ${WAN_I2V_URL}
+        api_key: ${API_KEY}
+        options:
+          default_width: 768
+          default_height: 768
+      - type: qwen-edit
+        api_url: ${QWEN_EDIT_URL}
+        api_key: ${API_KEY}
+        options: {}
+      - type: concat-upscale
+        api_url: ${VIDEO_CONCAT_URL}
+        api_key: ${API_KEY}
+        options: {}
+    steps:
+      - name: scene_generation
+        node: qwen-vl
+        description: "Generate scene descriptions from input image"
+        config:
+          system_prompt: |
+            【输入方式】：参考图 + 文本描述  
+            【延展目标】：基于上一张图的画面风格、人物外形、光影氛围、镜头语言，生成下一张分镜图，使得剧情延续
+            
+            保持人物外观一致  
+            色调光影与参考图统一  
+            背景元素延续，不突变  
+            构图具备电影感（景别 / 光影 / 空间层次）
+            
+            镜头类型（特写 / 中景 / 远景 / 俯拍 / 跟拍 / 环绕 / 侧移 / 拉远）  
+            镜头运动节奏（慢推 / 快切 / 手持感）  
+            
+            人物发色、身形不变  
+            服饰延续衔接，不跳变  
+            动作表情是上一个镜头的自然推进  
+            背景环境连续递进
+            
+            高清画面  
+            电影级光影  
+            真实材质  
+            无噪点无畸变  
+            可作为下一张分镜生成基础
+      
+      - name: image_editing
+        node: qwen-edit
+        description: "Generate edited images for each scene"
+        config:
+          max_scenes: 3
+      
+      - name: video_generation
+        node: wan-i2v
+        description: "Generate videos from edited images"
+        config: {}
+      
+      - name: video_concatenation
+        node: concat-upscale
+        description: "Concatenate generated videos"
+        config: {}
