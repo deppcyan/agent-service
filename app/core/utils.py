@@ -203,7 +203,7 @@ def get_local_file_url(file_id: str) -> str:
     Returns:
         str: Complete file access URL
     """
-    return f"{GLOBAL_SERVICE_URL}/files/{file_id}"
+    return f"{get_service_url()}/files/{file_id}"
 
 expected_api_key = os.getenv('DIGEN_API_KEY', "e7fca923-c9f0-4874-a8f6-b1b4a22ef28a")
 async def verify_api_key(x_api_key: str = Header(...)):

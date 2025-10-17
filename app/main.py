@@ -6,7 +6,7 @@ import uuid
 from typing import Dict, Any
 
 from app.core.logger import logger, pod_id
-from app.core.utils import verify_api_key, init_service_url, GLOBAL_SERVICE_URL
+from app.core.utils import verify_api_key, init_service_url, get_service_url
 from app.config.services import config
 from app.core.job_manager import job_manager
 from app.core.storage.file_manager import output_file_manager
@@ -16,12 +16,8 @@ from app.schemas.api import (
     GenerateRequest, JobResponse, JobState, FileInfo,
     HealthResponse, CancelResponse, PurgeResponse
 )
-from app.workflows.image_to_video import create_workflow
 
 app = FastAPI()
-
-# Workflow registry
-WORKFLOWS = {}
 
 # Service name mapping
 SERVICE_NAMES = {
@@ -35,11 +31,9 @@ SERVICE_NAMES = {
 @app.on_event("startup")
 async def startup_event():
     """Start background tasks on startup"""
-    global WORKFLOWS
-    
+   
     # Initialize service URL
     init_service_url()
-    base_callback_url = f"{GLOBAL_SERVICE_URL}/webhook"
     
     # Configure rate limits and concurrency for services
     for service_name, service_config in config.services.items():
@@ -59,17 +53,8 @@ async def startup_event():
         raise ValueError("DIGEN_API_KEY environment variable not set")
     
     # Initialize workflows with service URLs and callback URLs
-    service_urls = config.get_all_service_urls()
-    WORKFLOWS = {
-        "image-to-video": create_workflow({
-            "qwen_vl_url": service_urls["qwen_vl"],
-            "qwen_edit_url": service_urls["qwen_edit"],
-            "wan_i2v_url": service_urls["wan_i2v"],
-            "video_concat_url": service_urls["video_concat"],
-            "api_key": api_key,
-            "base_callback_url": base_callback_url
-        })
-    }
+    # Initialize workflow registry
+    from app.config.workflows import workflow_registry
     
 @app.post("/webhook/{service_name}")
 async def handle_webhook(
@@ -132,10 +117,6 @@ async def generate(
     job_id = str(uuid.uuid4())
     logger.info(f"New request: {request.model_dump_json()}", extra={"job_id": job_id})
     
-    # Validate workflow
-    if request.model not in WORKFLOWS:
-        raise HTTPException(status_code=400, detail=f"Unsupported model: {request.model}")
-    
     # Create job state
     job_state = JobState(
         id=job_id,
@@ -146,7 +127,7 @@ async def generate(
         webhook_url=request.webhookUrl,
         options=request.options.model_dump(),
         pod_id=pod_id,
-        pod_url=GLOBAL_SERVICE_URL  # 使用全局变量
+        pod_url=get_service_url()  # 使用 getter 函数确保 URL 已初始化
     )
     
     # Add job to queue

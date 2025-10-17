@@ -3,8 +3,8 @@ from typing import Dict, Optional, List, Any
 from datetime import datetime, timezone
 from collections import defaultdict
 from app.schemas.api import JobState, WebhookResponse
-from app.core.logger import logger
-from app.core.utils import calculate_wait_time
+from app.core.logger import logger, pod_id
+from app.core.utils import calculate_wait_time, get_service_url
 import aiohttp
 
 class JobManager:
@@ -50,16 +50,20 @@ class JobManager:
         self.active_tasks[job_state.id] = task
         
         # Calculate queue stats
+        '''
         current_queue_size = len([job for job in self.job_states.values() 
                                 if job.status in ['pending', 'processing']])
         estimated_wait_time = calculate_wait_time(self.job_states)
-        
+        '''
+
+        current_queue_size = 0
+        estimated_wait_time = 0
         return {
             "id": job_state.id,
-            "pod_id": job_state.pod_id,
+            "pod_id": pod_id,
             "queue_position": current_queue_size,
             "estimated_wait_time": estimated_wait_time,
-            "pod_url": job_state.pod_url
+            "pod_url": get_service_url()
         }
     
     def get_job_state(self, job_id: str) -> Optional[JobState]:
@@ -191,13 +195,16 @@ class JobManager:
     async def _execute_workflow(self, job_id: str, workflow: Any, input_data: Dict[str, Any]) -> None:
         """Execute workflow for a job"""
         try:
+            # Get job state to access options
+            job_state = self.job_states[job_id]
+            
             # Update job status to processing
             await self.update_job_state(job_id, {"status": "processing"})
             
-            # Execute workflow
+            # Execute workflow with both input and options
             async with self.processing_semaphore:
                 try:
-                    result = await workflow.execute(job_id, input_data)
+                    result = await workflow.execute(job_id, input_data, job_state.options)
                     
                     # Update job state with results and trigger webhook
                     updates = {

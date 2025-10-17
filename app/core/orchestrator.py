@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional, Type
+from typing import Dict, Any, List, Optional, Type, Union
 from abc import ABC, abstractmethod
 import asyncio
 from .logger import logger
@@ -40,7 +40,6 @@ class ServiceStep(WorkflowStep):
         # Execute service
         result = await self.service.generate(
             input_data,
-            context["job_id"],
             self.callback_url
         )
         
@@ -134,13 +133,22 @@ class WorkflowBuilder:
         self.name = name
         self.steps: List[WorkflowStep] = []
     
-    def add_service(self, name: str, service: AsyncServiceNode,
-                   input_mapping: Dict[str, str],
-                   output_mapping: Dict[str, str],
+    def add_service(self, step: Union[ServiceStep, str], service: Optional[AsyncServiceNode] = None,
+                   input_mapping: Optional[Dict[str, str]] = None,
+                   output_mapping: Optional[Dict[str, str]] = None,
                    callback_url: Optional[str] = None) -> 'WorkflowBuilder':
-        """Add a service step"""
-        step = ServiceStep(name, service, input_mapping, output_mapping, callback_url)
-        self.steps.append(step)
+        """Add a service step
+        
+        Can be called in two ways:
+        1. add_service(service_step: ServiceStep)
+        2. add_service(name: str, service: AsyncServiceNode, input_mapping: Dict, output_mapping: Dict, callback_url: Optional[str])
+        """
+        if isinstance(step, ServiceStep):
+            self.steps.append(step)
+        else:
+            # Legacy way - construct ServiceStep from parameters
+            service_step = ServiceStep(step, service, input_mapping, output_mapping, callback_url)
+            self.steps.append(service_step)
         return self
     
     def add_parallel(self, name: str, steps: List[WorkflowStep]) -> 'WorkflowBuilder':
