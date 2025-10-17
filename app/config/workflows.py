@@ -19,7 +19,8 @@ class WorkflowConfig(BaseModel):
 class WorkflowRegistry:
     """Registry for workflow configurations and node types"""
     
-    def __init__(self):
+    def __init__(self, config_dir: str = "config"):
+        self.config_dir = config_dir
         self.node_types: Dict[str, Type[ServiceNode]] = {
             "qwen_vl": QwenVLNode,
             "wan_i2v": WanI2VNode,
@@ -27,7 +28,16 @@ class WorkflowRegistry:
             "video_concat": VideoConcatNode
         }
         self.workflows: Dict[str, WorkflowConfig] = {}
+        self._load_configs()
     
+    def _load_configs(self):
+        """Load all workflow configurations"""
+        workflows_file = os.path.join(self.config_dir, "workflows.yaml")
+        if os.path.exists(workflows_file):
+            self.load_workflow_config(workflows_file)
+        else:
+            raise ValueError(f"Workflow configuration file not found: {workflows_file}")
+
     def register_node_type(self, name: str, node_class: Type[ServiceNode]) -> None:
         """Register a new node type"""
         self.node_types[name] = node_class
@@ -79,7 +89,7 @@ class WorkflowRegistry:
         # This could be extended to support dynamic workflow class loading
         from app.workflows.image_to_video import ImageToVideoWorkflow
         workflow_classes = {
-            "image_to_video": ImageToVideoWorkflow
+            "image-to-video": ImageToVideoWorkflow
         }
         return workflow_classes.get(name)
 

@@ -1,13 +1,11 @@
 workflows:
-  - name: image_to_video
+  - name: image-to-video
     description: "Generate video from image using AI services"
     nodes:
       - type: qwen_vl
         options: {}
       - type: wan_i2v
-        options:
-          default_width: 768
-          default_height: 768
+        options: {}
       - type: qwen_edit
         options: {}
       - type: video_concat
