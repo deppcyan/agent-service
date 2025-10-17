@@ -3,11 +3,13 @@ from app.core.orchestrator import WorkflowBuilder, ServiceStep, Workflow
 from app.services.base import AsyncServiceNode
 from app.config.workflows import workflow_registry
 from app.core.utils import get_service_url
+from app.workflows.base import AsyncWorkflow
 
-class ImageToVideoWorkflow:
+class ImageToVideoWorkflow(AsyncWorkflow):
     """Image to video workflow using orchestrator"""
     
     def __init__(self, services: Dict[str, AsyncServiceNode]):
+        super().__init__("image_to_video")
         self.services = services
         # 加载工作流配置
         self.workflow_config = workflow_registry.workflows["image-to-video"]
@@ -144,8 +146,10 @@ class ImageToVideoWorkflow:
         # 在执行时构建工作流
         self.workflow = self._build_workflow(scene_count)
         
-        # 执行工作流
-        result = await self.workflow.execute(context)
+        # 执行工作流并保存任务引用以支持取消
+        self._task = self.workflow.execute(context)
+        result = await self._task
+        self._task = None
         
         # 返回结果
         return {
