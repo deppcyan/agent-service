@@ -35,8 +35,7 @@ class JobManager:
         
         # Create workflow instance
         workflow = self.workflow_registry.create_workflow(
-            job_state.model,
-            job_state.api_key
+            job_state.model
         )
         
         if not workflow:

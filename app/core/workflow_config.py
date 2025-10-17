@@ -1,13 +1,14 @@
 from typing import Dict, Any, List, Type, Optional
 from pydantic import BaseModel
 import yaml
+import os
 from ..core.base import ServiceNode, Workflow
 from ..services.nodes import QwenVLNode, WanI2VNode, QwenEditNode, VideoConcatNode
 
 class NodeConfig(BaseModel):
     type: str
     api_url: str
-    api_key: str
+    api_key_env: str
     options: Optional[Dict[str, Any]] = None
 
 class WorkflowConfig(BaseModel):
@@ -41,7 +42,7 @@ class WorkflowRegistry:
             workflow_config = WorkflowConfig(**workflow_data)
             self.workflows[workflow_config.name] = workflow_config
     
-    def create_workflow(self, name: str, api_key: str) -> Optional[Workflow]:
+    def create_workflow(self, name: str) -> Optional[Workflow]:
         """Create a workflow instance from configuration"""
         config = self.workflows.get(name)
         if not config:
@@ -53,6 +54,10 @@ class WorkflowRegistry:
             node_class = self.node_types.get(node_config.type)
             if not node_class:
                 raise ValueError(f"Unknown node type: {node_config.type}")
+            
+            api_key = os.getenv(node_config.api_key_env)
+            if not api_key:
+                raise ValueError(f"Environment variable {node_config.api_key_env} not set for {node_config.type}")
                 
             node = node_class(
                 api_url=node_config.api_url,
