@@ -1,7 +1,7 @@
 services:
   qwen_vl:
     url: https://50067120bfc96748-8000.us-ca-6.gpu-instance.novita.ai
-    api_key_env: DIGEN_API_KEY
+    api_key: ${DIGEN_API_KEY}
     rate_limit:
       calls: 10
       period: 1.0  # seconds
@@ -9,7 +9,7 @@ services:
 
   qwen_edit:
     url: http://192.168.0.238
-    api_key_env: DIGEN_API_KEY
+    api_key: ${DIGEN_API_KEY}
     rate_limit:
       calls: 10
       period: 1.0
@@ -17,7 +17,7 @@ services:
 
   wan_i2v:
     url: http://192.168.0.238
-    api_key_env: DIGEN_API_KEY
+    api_key: ${DIGEN_API_KEY}
     rate_limit:
       calls: 5
       period: 1.0
@@ -25,7 +25,7 @@ services:
 
   wan_talk:
     url: http://192.168.0.238
-    api_key_env: DIGEN_API_KEY
+    api_key: ${DIGEN_API_KEY}
     rate_limit:
       calls: 5
       period: 1.0
@@ -33,7 +33,7 @@ services:
 
   video_concat:
     url: http://192.168.0.238
-    api_key_env: DIGEN_API_KEY
+    api_key: ${DIGEN_API_KEY}
     rate_limit:
       calls: 5
       period: 1.0

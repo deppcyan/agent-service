@@ -7,8 +7,6 @@ from ..services.nodes import QwenVLNode, WanI2VNode, QwenEditNode, VideoConcatNo
 
 class NodeConfig(BaseModel):
     type: str
-    api_url: str
-    api_key_env: str
     options: Optional[Dict[str, Any]] = None
 
 class WorkflowConfig(BaseModel):
@@ -22,10 +20,10 @@ class WorkflowRegistry:
     
     def __init__(self):
         self.node_types: Dict[str, Type[ServiceNode]] = {
-            "qwen-vl": QwenVLNode,
-            "wan-i2v": WanI2VNode,
-            "qwen-edit": QwenEditNode,
-            "concat-upscale": VideoConcatNode
+            "qwen_vl": QwenVLNode,
+            "wan_i2v": WanI2VNode,
+            "qwen_edit": QwenEditNode,
+            "video_concat": VideoConcatNode
         }
         self.workflows: Dict[str, WorkflowConfig] = {}
     
@@ -44,24 +42,29 @@ class WorkflowRegistry:
     
     def create_workflow(self, name: str) -> Optional[Workflow]:
         """Create a workflow instance from configuration"""
-        config = self.workflows.get(name)
-        if not config:
+        from ..core.config import config as service_config
+        
+        workflow_config = self.workflows.get(name)
+        if not workflow_config:
             return None
             
         # Create service nodes
         services = {}
-        for node_config in config.nodes:
+        for node_config in workflow_config.nodes:
             node_class = self.node_types.get(node_config.type)
             if not node_class:
                 raise ValueError(f"Unknown node type: {node_config.type}")
             
-            api_key = os.getenv(node_config.api_key_env)
-            if not api_key:
-                raise ValueError(f"Environment variable {node_config.api_key_env} not set for {node_config.type}")
-                
+            # Get service configuration
+            service_conf = service_config.get_service_config(node_config.type)
+            if not service_conf:
+                raise ValueError(f"No service configuration found for: {node_config.type}")
+            
+            # Create node instance
             node = node_class(
-                api_url=node_config.api_url,
-                api_key=api_key
+                api_url=service_conf.url,
+                api_key=service_conf.api_key,
+                **node_config.options or {}
             )
             services[node_config.type] = node
         

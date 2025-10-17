@@ -6,6 +6,7 @@ from functools import lru_cache
 
 class ServiceConfig(BaseModel):
     url: str
+    api_key: str
     rate_limit: Dict[str, float]
     max_concurrent: int
 
@@ -29,17 +30,28 @@ class Config:
         
         # Process services
         for service_name, service_config in config['services'].items():
-            # Replace environment variables
+            # Replace environment variables in URL and API key
             url = service_config['url']
+            api_key = service_config['api_key']
+            
+            # Process URL
             if url.startswith('${') and url.endswith('}'):
                 env_var = url[2:-1]
                 url = os.getenv(env_var)
                 if not url:
                     raise ValueError(f"Environment variable {env_var} not set")
             
+            # Process API key
+            if api_key.startswith('${') and api_key.endswith('}'):
+                env_var = api_key[2:-1]
+                api_key = os.getenv(env_var)
+                if not api_key:
+                    raise ValueError(f"Environment variable {env_var} not set")
+            
             # Create service config
             self.services[service_name] = ServiceConfig(
                 url=url,
+                api_key=api_key,
                 rate_limit=service_config['rate_limit'],
                 max_concurrent=service_config['max_concurrent']
             )
