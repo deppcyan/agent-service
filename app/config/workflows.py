@@ -2,9 +2,9 @@ from typing import Dict, Any, List, Type, Optional
 from pydantic import BaseModel
 import yaml
 import os
-from app.core.base import ServiceNode, Workflow
-from app.services import QwenVLNode, WanI2VNode, QwenEditNode, VideoConcatNode
+from app.services import QwenVLNode, WanI2VNode, QwenEditNode, VideoConcatNode, AsyncServiceNode
 from app.config.services import config as service_config
+from app.workflows import AsyncWorkflow
 
 class NodeConfig(BaseModel):
     type: str
@@ -21,7 +21,7 @@ class WorkflowRegistry:
     
     def __init__(self, config_dir: str = "config"):
         self.config_dir = config_dir
-        self.node_types: Dict[str, Type[ServiceNode]] = {
+        self.node_types: Dict[str, Type[AsyncServiceNode]] = {
             "qwen_vl": QwenVLNode,
             "wan_i2v": WanI2VNode,
             "qwen_edit": QwenEditNode,
@@ -38,7 +38,7 @@ class WorkflowRegistry:
         else:
             raise ValueError(f"Workflow configuration file not found: {workflows_file}")
 
-    def register_node_type(self, name: str, node_class: Type[ServiceNode]) -> None:
+    def register_node_type(self, name: str, node_class: Type[AsyncServiceNode]) -> None:
         """Register a new node type"""
         self.node_types[name] = node_class
     
@@ -51,7 +51,7 @@ class WorkflowRegistry:
             workflow_config = WorkflowConfig(**workflow_data)
             self.workflows[workflow_config.name] = workflow_config
     
-    def create_workflow(self, name: str) -> Optional[Workflow]:
+    def create_workflow(self, name: str) -> Optional[AsyncWorkflow]:
         """Create a workflow instance from configuration"""
         workflow_config = self.workflows.get(name)
         if not workflow_config:
@@ -84,7 +84,7 @@ class WorkflowRegistry:
             
         return workflow_class(services)
     
-    def _get_workflow_class(self, name: str) -> Optional[Type[Workflow]]:
+    def _get_workflow_class(self, name: str) -> Optional[Type[AsyncWorkflow]]:
         """Get the workflow class for a given name"""
         # This could be extended to support dynamic workflow class loading
         from app.workflows.image_to_video import ImageToVideoWorkflow

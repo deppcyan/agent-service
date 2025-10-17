@@ -1,44 +1,26 @@
 import httpx
 from typing import Any, Dict, Optional
-from app.core.base import ServiceNode, ServiceResponse
+from app.services.base import AsyncServiceNode
 
-class VideoConcatNode(ServiceNode):
-    def _get_model_name(self) -> str:
+class VideoConcatNode(AsyncServiceNode):
+    def _get_service_name(self) -> str:
         return "concat-upscale"
-
-    async def generate(self, input_data: Dict[str, Any], webhook_url: Optional[str] = None) -> ServiceResponse:
-        headers = {"X-API-Key": self.api_key, "Content-Type": "application/json"}
+        
+    def _prepare_request(self, input_data: Dict[str, Any], callback_url: Optional[str] = None) -> Dict[str, Any]:
+        """Prepare request data for the service"""
         payload = {
-            "model": self.model_name,
+            "model": self.service_name,
             "input": [{"type": "video", "url": url} for url in input_data["video_urls"]],
             "options": input_data.get("options", {})
         }
-        if webhook_url:
-            payload["webhookUrl"] = webhook_url
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.api_url}/v1/generate",
-                headers=headers,
-                json=payload
-            )
-            response.raise_for_status()
-            data = response.json()
-            return ServiceResponse(
-                id=data["id"],
-                status="pending",
-                pod_id=data.get("pod_id"),
-                queue_position=data.get("queuePosition"),
-                estimated_wait_time=data.get("estimatedWaitTime"),
-                pod_url=data.get("pod_url")
-            )
-
-    async def cancel(self, job_id: str) -> Dict[str, Any]:
-        headers = {"X-API-Key": self.api_key}
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(
-                f"{self.api_url}/cancel/{job_id}",
-                headers=headers
-            )
-            response.raise_for_status()
-            return response.json()
+        if callback_url:
+            payload["webhookUrl"] = callback_url
+        return payload
+    
+    async def _handle_callback(self, callback_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle service callback data"""
+        # 视频拼接服务会返回最终的视频URL
+        return {
+            "output_url": callback_data.get("output_url"),
+            "status": callback_data.get("status", "completed")
+        }

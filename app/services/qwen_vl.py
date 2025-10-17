@@ -1,32 +1,19 @@
 import httpx
 from typing import Any, Dict, Optional
-from app.core.base import ServiceNode, ServiceResponse
+from app.services.base import AsyncServiceNode
 
-class QwenVLNode(ServiceNode):
-    def _get_model_name(self) -> str:
+class QwenVLNode(AsyncServiceNode):
+    def _get_service_name(self) -> str:
         return "qwen-vl"
-
-    async def generate(self, input_data: Dict[str, Any], webhook_url: Optional[str] = None) -> Dict[str, Any]:
-        headers = {"X-API-Key": self.api_key, "Content-Type": "application/json"}
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.api_url}/v1/generate",
-                headers=headers,
-                json={
-                    "image_url": input_data.get("image_url"),
-                    "prompt": input_data.get("prompt", ""),
-                    "system_prompt": input_data.get("system_prompt", "")
-                }
-            )
-            response.raise_for_status()
-            return response.json()
-
-    async def cancel(self, job_id: str) -> Dict[str, Any]:
-        headers = {"X-API-Key": self.api_key}
-        async with httpx.AsyncClient() as client:
-            response = await client.delete(
-                f"{self.api_url}/cancel/{job_id}",
-                headers=headers
-            )
-            response.raise_for_status()
-            return response.json()
+        
+    def _prepare_request(self, input_data: Dict[str, Any], callback_url: Optional[str] = None) -> Dict[str, Any]:
+        """Prepare request data for the service"""
+        return {
+            "image_url": input_data.get("image_url"),
+            "prompt": input_data.get("prompt", ""),
+            "system_prompt": input_data.get("system_prompt", "")
+        }
+    
+    async def _handle_callback(self, callback_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle service callback data"""
+        return callback_data  # QwenVL doesn't use callbacks, but we need to implement this
