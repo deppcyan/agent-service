@@ -3,7 +3,6 @@ from typing import Dict, Any, Optional, Callable, Awaitable
 import aiohttp
 from app.core.logger import logger
 from app.core.callback_manager import callback_manager
-from app.core.concurrency import concurrency_manager
 
 class AsyncServiceNode(ABC):
     """Base class for async service nodes"""
@@ -50,11 +49,7 @@ class AsyncServiceNode(ABC):
                         )
                     return await response.json()
         
-        return await concurrency_manager.execute_with_limits(
-            self.service_name,
-            _request,
-            job_id=job_id
-        )
+        return await _request()
     
     async def generate(self, input_data: Dict[str, Any], job_id: str, 
                       callback_url: Optional[str] = None,

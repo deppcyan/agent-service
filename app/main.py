@@ -11,7 +11,6 @@ from app.config.services import config
 from app.core.job_manager import job_manager
 from app.core.storage.file_manager import output_file_manager
 from app.core.callback_manager import callback_manager
-from app.core.concurrency import concurrency_manager
 from app.schemas.api import (
     GenerateRequest, JobResponse, JobState, FileInfo,
     HealthResponse, CancelResponse, PurgeResponse
@@ -34,18 +33,6 @@ async def startup_event():
    
     # Initialize service URL
     init_service_url()
-    
-    # Configure rate limits and concurrency for services
-    for service_name, service_config in config.services.items():
-        concurrency_manager.configure_rate_limit(
-            service_name,
-            service_config.rate_limit["calls"],
-            service_config.rate_limit["period"]
-        )
-        concurrency_manager.configure_concurrency(
-            service_name,
-            service_config.max_concurrent
-        )
     
     # Get API key from environment
     api_key = os.getenv('DIGEN_API_KEY')
