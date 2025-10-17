@@ -11,7 +11,8 @@ class QwenVLNode(AsyncServiceNode):
         return {
             "image_url": input_data.get("image_url"),
             "prompt": input_data.get("prompt", ""),
-            "system_prompt": input_data.get("system_prompt", "")
+            "system_prompt": input_data.get("system_prompt", ""),
+            "seed": input_data.get("seed", 42),
         }
     
     async def _handle_callback(self, callback_data: Dict[str, Any]) -> Dict[str, Any]:

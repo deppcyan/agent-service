@@ -13,6 +13,8 @@ class ImageToVideoWorkflow(AsyncWorkflow):
         self.services = services
         # 加载工作流配置
         self.workflow_config = workflow_registry.workflows["image-to-video"]
+        # 获取步骤配置
+        self.steps_config = {step["name"]: step.get("config", {}) for step in self.workflow_config.steps}
         # 工作流实例在执行时创建
         self.workflow = None
         
@@ -23,8 +25,48 @@ class ImageToVideoWorkflow(AsyncWorkflow):
         """Get callback URL for a service"""
         return f"{self.base_callback_url}/webhook/{service_name}"
     
+    def _create_scene_extraction_step(self) -> ServiceStep:
+        """创建分镜提取步骤"""
+        step = ServiceStep(
+            "scene_extraction",
+            None,  # 这是一个内部处理步骤，不需要外部服务
+            input_mapping={
+                "text": "raw_scenes"
+            },
+            output_mapping={
+                "scenes": "scenes"
+            }
+        )
+        
+        # 添加处理逻辑
+        async def execute(context: Dict[str, Any]) -> Dict[str, Any]:
+            text = context.get("text", "")
+            max_scenes = self.steps_config["image_editing"].get("max_scenes", 3)
+            scenes = []
+            result = {"scenes": []}
+            
+            for line in text.split("\n"):
+                if line.startswith("Next Scene:"):
+                    scene = line.replace("Next Scene:", "").strip()
+                    scenes.append(scene)
+                    if len(scenes) >= max_scenes:
+                        break
+            
+            # 将场景列表添加到结果中
+            result["scenes"] = scenes
+            
+            # 为每个场景创建单独的上下文变量
+            for i, scene in enumerate(scenes):
+                result[f"scenes[{i}]"] = scene
+                
+            return result
+            
+        step.execute = execute
+        return step
+
     def _create_scene_generation_step(self) -> ServiceStep:
         """创建场景生成步骤"""
+        config = self.steps_config["scene_generation"]
         step = ServiceStep(
             "scene_generation",
             self.services["qwen_vl"],
@@ -34,7 +76,7 @@ class ImageToVideoWorkflow(AsyncWorkflow):
                 "system_prompt": "system_prompt"
             },
             output_mapping={
-                "scenes": "enhanced_prompt"
+                "raw_scenes": "enhanced_prompt"  # 改为raw_scenes，后续会处理
             }
         )
         
@@ -127,6 +169,9 @@ class ImageToVideoWorkflow(AsyncWorkflow):
         # 添加场景生成步骤
         builder.add_service(self._create_scene_generation_step())
         
+        # 添加分镜提取步骤
+        builder.add_service(self._create_scene_extraction_step())
+        
         # 添加并行的图片编辑步骤
         builder.add_parallel(
             "image_editing",
@@ -168,28 +213,22 @@ class ImageToVideoWorkflow(AsyncWorkflow):
         
         return builder.build()
     
-    def _extract_scenes(self, text: str, max_scenes: int = 3) -> List[str]:
-        """Extract scene descriptions from QwenVL output"""
-        scenes = []
-        for line in text.split("\n"):
-            if line.startswith("Next Scene:"):
-                scenes.append(line.replace("Next Scene:", "").strip())
-                if len(scenes) >= max_scenes:
-                    break
-        return scenes
-    
     async def execute(self, job_id: str, input_data: Dict[str, Any], options: Dict[str, Any]) -> Dict[str, Any]:
         """Execute the workflow"""
         # 准备初始上下文
+        # 从配置中获取默认值
+        scene_gen_config = self.steps_config["scene_generation"]
+        
         context = {
             "job_id": job_id,
             "input_image_url": input_data[0]["url"],
             "prompt": options.get("prompt", ""),
-            "system_prompt": options.get("system_prompt", ""),
+            "system_prompt": scene_gen_config.get("system_prompt", ""),
             "width": options.get("width", 768),
             "height": options.get("height", 768),
             "duration": options.get("duration", 5),
-            "crf": options.get("crf", None)
+            "crf": options.get("crf", None),
+            "seed": options.get("seed", None),
         }
         
         # 记录工作流开始和输入参数
@@ -199,8 +238,8 @@ class ImageToVideoWorkflow(AsyncWorkflow):
             "context": context
         })
         
-        # 根据输入参数确定场景数量
-        scene_count = options.get("scene_count", 3)
+        # 根据配置文件确定场景数量
+        scene_count = self.steps_config["image_editing"].get("max_scenes", 3)
         
         # 在执行时构建工作流
         self.workflow = self._build_workflow(scene_count)
@@ -218,7 +257,7 @@ class ImageToVideoWorkflow(AsyncWorkflow):
             "status": "completed",
             "output_url": result.get("final_video"),
             "intermediate_results": {
-                "scenes": self._extract_scenes(result["scenes"]),
+                "scenes": result.get("scenes", []),
                 "edited_images": [
                     result.get(f"edited_image_{i}") for i in range(scene_count)
                 ],
