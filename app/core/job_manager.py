@@ -2,9 +2,9 @@ import asyncio
 from typing import Dict, Optional, List, Any
 from datetime import datetime, timezone
 from collections import defaultdict
-from ..schemas.api import JobState, WebhookResponse
-from ..core.logger import logger
-from ..core.utils import calculate_wait_time
+from app.schemas.api import JobState, WebhookResponse
+from app.core.logger import logger
+from app.core.utils import calculate_wait_time
 import aiohttp
 
 class JobManager:
@@ -25,7 +25,7 @@ class JobManager:
         self.active_tasks: Dict[str, asyncio.Task] = {}
         
         # Workflow registry
-        from ..core.workflow_config import workflow_registry
+        from app.core.workflow_config import workflow_registry
         self.workflow_registry = workflow_registry
     
     async def add_job(self, job_state: JobState) -> Dict[str, Any]:

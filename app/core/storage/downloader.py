@@ -2,7 +2,7 @@ import os
 import aiohttp
 from typing import Optional
 from urllib.parse import urlparse
-from ..logger import logger
+from app.core.logger import logger
 from .s3_manager import s3_manager
 
 class FileDownloader:

@@ -2,8 +2,8 @@ from typing import Dict, Any, List, Type, Optional
 from pydantic import BaseModel
 import yaml
 import os
-from ..core.base import ServiceNode, Workflow
-from ..services.nodes import QwenVLNode, WanI2VNode, QwenEditNode, VideoConcatNode
+from app.core.base import ServiceNode, Workflow
+from app.services import QwenVLNode, WanI2VNode, QwenEditNode, VideoConcatNode
 
 class NodeConfig(BaseModel):
     type: str
@@ -42,7 +42,7 @@ class WorkflowRegistry:
     
     def create_workflow(self, name: str) -> Optional[Workflow]:
         """Create a workflow instance from configuration"""
-        from ..core.config import config as service_config
+        from app.core.config import config as service_config
         
         workflow_config = self.workflows.get(name)
         if not workflow_config:
@@ -78,7 +78,7 @@ class WorkflowRegistry:
     def _get_workflow_class(self, name: str) -> Optional[Type[Workflow]]:
         """Get the workflow class for a given name"""
         # This could be extended to support dynamic workflow class loading
-        from ..workflows.image_to_video import ImageToVideoWorkflow
+        from app.workflows.image_to_video import ImageToVideoWorkflow
         workflow_classes = {
             "image_to_video": ImageToVideoWorkflow
         }

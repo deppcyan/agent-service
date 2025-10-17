@@ -2,7 +2,7 @@ from typing import Dict, Any, List, Optional, Type
 from abc import ABC, abstractmethod
 import asyncio
 from .logger import logger
-from ..services.nodes.base import AsyncServiceNode
+from app.services.base import AsyncServiceNode
 
 class WorkflowStep(ABC):
     """Base class for workflow steps"""

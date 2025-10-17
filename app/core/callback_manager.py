@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, Any, Optional, Callable, Awaitable
 from datetime import datetime, timezone
-from ..core.logger import logger
+from app.core.logger import logger
 
 class CallbackManager:
     """Manages service callbacks and their routing"""

@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, Callable, Awaitable
 import aiohttp
-from ..core.logger import logger
-from ..core.callback_manager import callback_manager
-from ..core.concurrency import concurrency_manager
+from app.core.logger import logger
+from app.core.callback_manager import callback_manager
+from app.core.concurrency import concurrency_manager
 
 class AsyncServiceNode(ABC):
     """Base class for async service nodes"""

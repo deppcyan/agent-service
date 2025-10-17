@@ -1,6 +1,6 @@
 import httpx
 from typing import Any, Dict, Optional
-from ...core.base import ServiceNode, ServiceResponse
+from app.core.base import ServiceNode, ServiceResponse
 
 class QwenVLNode(ServiceNode):
     def _get_model_name(self) -> str:

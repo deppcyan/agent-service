@@ -1,10 +1,10 @@
 from typing import Dict, Any, List
-from ..core.orchestrator import WorkflowBuilder, ServiceStep
-from ..services.qwen_vl import QwenVLNode
-from ..services.qwen_edit import QwenEditNode
-from ..services.wan_i2v import WanI2VNode
-from ..services.video_concat import VideoConcatNode
-from ..core.utils import get_service_url
+from app.core.orchestrator import WorkflowBuilder, ServiceStep
+from app.services.qwen_vl import QwenVLNode
+from app.services.qwen_edit import QwenEditNode
+from app.services.wan_i2v import WanI2VNode
+from app.services.video_concat import VideoConcatNode
+from app.core.utils import get_service_url
 
 class ImageToVideoWorkflow:
     """Image to video workflow using orchestrator"""

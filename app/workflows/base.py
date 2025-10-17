@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 import asyncio
-from ..core.logger import logger
-from ..core.storage.downloader import downloader
-from ..core.storage.uploader import uploader
-from ..core.storage.file_manager import input_file_manager, output_file_manager
-from ..core.job_manager import job_manager
+from app.core.logger import logger
+from app.core.storage.downloader import downloader
+from app.core.storage.uploader import uploader
+from app.core.storage.file_manager import input_file_manager, output_file_manager
+from app.core.job_manager import job_manager
 
 class AsyncWorkflow(ABC):
     """Base class for async workflows"""
