@@ -1,9 +1,9 @@
 from typing import Dict, Any, List
 from ..core.orchestrator import WorkflowBuilder, ServiceStep
-from ..services.nodes.qwen_vl import QwenVLNode
-from ..services.nodes.qwen_edit import QwenEditNode
-from ..services.nodes.wan_i2v import WanI2VNode
-from ..services.nodes.video_concat import VideoConcatNode
+from ..services.qwen_vl import QwenVLNode
+from ..services.qwen_edit import QwenEditNode
+from ..services.wan_i2v import WanI2VNode
+from ..services.video_concat import VideoConcatNode
 from ..core.utils import get_service_url
 
 class ImageToVideoWorkflow:
