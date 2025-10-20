@@ -1,0 +1,23 @@
+@import 'reactflow/dist/style.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .react-flow__node {
+    @apply bg-white rounded-lg shadow-lg border border-gray-200;
+  }
+
+  .react-flow__handle {
+    @apply w-3 h-3 bg-blue-500;
+  }
+
+  .react-flow__edge {
+    @apply stroke-2 stroke-gray-400;
+  }
+
+  .react-flow__edge.selected {
+    @apply stroke-blue-500;
+  }
+}
