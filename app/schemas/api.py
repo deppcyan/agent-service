@@ -55,6 +55,11 @@ class WebhookResponse(BaseModel):
     output_wasabi_url: Optional[str] = Field(None, description="Output Wasabi URL")
     error: Optional[str] = Field(None, description="Error message if failed")
 
+    class Config:
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat()
+        }
+
 class FileInfo(BaseModel):
     file_id: str = Field(..., description="File ID")
     created_at: datetime = Field(..., description="File creation time")

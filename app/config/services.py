@@ -7,8 +7,7 @@ from functools import lru_cache
 class ServiceConfig(BaseModel):
     url: str
     api_key: str
-    rate_limit: Dict[str, float]
-    max_concurrent: int
+    model_name: str
 
 class ServicesConfig:
     """Services configuration manager"""
@@ -52,8 +51,7 @@ class ServicesConfig:
             self.services[service_name] = ServiceConfig(
                 url=url,
                 api_key=api_key,
-                rate_limit=service_config['rate_limit'],
-                max_concurrent=service_config['max_concurrent']
+                model_name=service_config['model_name']
             )
     
     def get_service_url(self, service_name: str) -> str:
@@ -73,6 +71,13 @@ class ServicesConfig:
         return {
             name: config.url
             for name, config in self.services.items()
+        }
+    
+    def get_model_to_service_mapping(self) -> Dict[str, str]:
+        """Get mapping from model names to service names"""
+        return {
+            config.model_name: service_name
+            for service_name, config in self.services.items()
         }
 
 @lru_cache()

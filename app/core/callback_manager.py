@@ -7,31 +7,25 @@ class CallbackManager:
     """Manages service callbacks and their routing"""
     
     def __init__(self):
-        # Store callback handlers for each service type
-        self.handlers: Dict[str, Dict[str, Callable]] = {}
+        # Store callback handlers by job_id
+        self.handlers: Dict[str, Callable] = {}
         # Store pending callbacks
         self.pending_callbacks: Dict[str, asyncio.Future] = {}
-        # Store job_id to service mapping
-        self.job_service_map: Dict[str, str] = {}
     
     def register_handler(self, service: str, job_id: str, 
                         handler: Callable[[Dict[str, Any]], Awaitable[None]]) -> None:
         """Register a callback handler for a specific service and job"""
-        if service not in self.handlers:
-            self.handlers[service] = {}
-        self.handlers[service][job_id] = handler
-        self.job_service_map[job_id] = service
+        # Store handler directly by job_id
+        self.handlers[job_id] = handler
         
         # Create a future for this callback
         self.pending_callbacks[job_id] = asyncio.Future()
     
     def unregister_handler(self, job_id: str) -> None:
         """Unregister a callback handler"""
-        service = self.job_service_map.get(job_id)
-        if service:
-            if job_id in self.handlers.get(service, {}):
-                del self.handlers[service][job_id]
-            del self.job_service_map[job_id]
+        # Remove handler if exists
+        if job_id in self.handlers:
+            del self.handlers[job_id]
         
         # Remove pending callback if exists
         if job_id in self.pending_callbacks:
@@ -49,7 +43,7 @@ class CallbackManager:
         
         try:
             # Get handler for this job
-            handler = self.handlers.get(service, {}).get(job_id)
+            handler = self.handlers.get(job_id)
             if handler:
                 await handler(data)
                 

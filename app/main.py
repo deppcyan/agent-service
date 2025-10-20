@@ -18,14 +18,8 @@ from app.schemas.api import (
 
 app = FastAPI()
 
-# Service name mapping
-SERVICE_NAMES = {
-    "qwen-vl": "qwen_vl",
-    "qwen-edit": "qwen_edit",
-    "wan-i2v": "wan_i2v",
-    "wan-talk": "wan_talk",
-    "concat-upscale": "video_concat"
-}
+# Get model name to service name mapping from config
+SERVICE_NAMES = config.get_model_to_service_mapping()
 
 @app.on_event("startup")
 async def startup_event():
@@ -55,16 +49,10 @@ async def handle_webhook(
         service_name: 服务名称
         request: webhook 请求
     """
-    # 验证服务名称
-    if service_name not in SERVICE_NAMES:
-        raise HTTPException(status_code=400, detail=f"Unknown service: {service_name}")
     
     try:
         # 获取请求数据
         data = await request.json()
-        
-        # 获取标准化的服务名称
-        normalized_service = SERVICE_NAMES[service_name]
         
         # 获取 job ID
         job_id = data.get("id")
@@ -77,7 +65,7 @@ async def handle_webhook(
         )
         
         # 处理回调
-        await callback_manager.handle_callback(normalized_service, data)
+        await callback_manager.handle_callback(service_name, data)
         
         return {"status": "success"}
         

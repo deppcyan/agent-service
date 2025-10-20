@@ -156,7 +156,7 @@ class JobManager:
             input=job_state.input,
             webhook_url=job_state.webhook_url,
             options=job_state.options,
-            stream=True,
+            stream=False,
             output_url=job_state.output_url,
             local_url=job_state.local_url,
             output_wasabi_url=job_state.output_wasabi_url,

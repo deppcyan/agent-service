@@ -2,39 +2,24 @@ services:
   qwen_vl:
     url: https://50067120bfc96748-8000.us-ca-6.gpu-instance.novita.ai
     api_key: ${DIGEN_API_KEY}
-    rate_limit:
-      calls: 10
-      period: 1.0  # seconds
-    max_concurrent: 20
+    model_name: qwen-vl  # 请求时使用的模型名称
 
   qwen_edit:
     url: http://192.168.0.238
     api_key: ${DIGEN_API_KEY}
-    rate_limit:
-      calls: 10
-      period: 1.0
-    max_concurrent: 20
+    model_name: qwen-edit
 
   wan_i2v:
     url: http://192.168.0.238
     api_key: ${DIGEN_API_KEY}
-    rate_limit:
-      calls: 5
-      period: 1.0
-    max_concurrent: 10
+    model_name: wan-i2v
 
   wan_talk:
     url: http://192.168.0.238
     api_key: ${DIGEN_API_KEY}
-    rate_limit:
-      calls: 5
-      period: 1.0
-    max_concurrent: 10
+    model_name: wan-talk
 
   video_concat:
     url: http://192.168.0.238
     api_key: ${DIGEN_API_KEY}
-    rate_limit:
-      calls: 5
-      period: 1.0
-    max_concurrent: 5
+    model_name: concat-upscale
