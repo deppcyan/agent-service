@@ -1,15 +1,5 @@
 {
     "nodes": {
-        "video_concat": {
-            "type": "VideoConcatNode",
-            "inputs": {
-                "api_url": "http://192.168.0.238:8000/v1/generate",
-                "timeout": 300,
-                "callback_url": "http://192.168.0.238:8001/webhook",
-                "video_urls": [],
-                "options": {}
-            }
-        },
         "video_batch": {
             "type": "WanI2VBatchNode",
             "inputs": {
@@ -65,6 +55,16 @@
                 "prompts": [],
                 "width": null,
                 "height": null
+            }
+        },
+        "video_concat": {
+            "type": "VideoConcatNode",
+            "inputs": {
+                "api_url": "http://192.168.0.238:8000/v1/generate",
+                "timeout": 300,
+                "callback_url": "http://192.168.0.238:8001/webhook",
+                "video_urls": [],
+                "options": {}
             }
         }
     },
