@@ -19,8 +19,7 @@ class QwenEditNode(AsyncAPIServiceNode):
         self.add_output_port("output_url", "string")
         self.add_output_port("options", "object")
     
-    def _prepare_request(self, input_data: Dict[str, Any], 
-                        callback_url: Optional[str] = None) -> Dict[str, Any]:
+    def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         request = {
             "model": "qwen-edit",
             "input": [{"type": "image", "url": input_data["image_url"]}],
@@ -28,11 +27,9 @@ class QwenEditNode(AsyncAPIServiceNode):
                 "prompt": input_data.get("prompt", ""),
                 "width": input_data.get("width", 768),
                 "height": input_data.get("height", 768)
-            }
+            },
+            "webhookUrl": input_data.get("callback_url")
         }
-        
-        if callback_url:
-            request["webhookUrl"] = callback_url
         
         return request
     
@@ -40,7 +37,7 @@ class QwenEditNode(AsyncAPIServiceNode):
         status = callback_data.get("status")
         if status == "completed":
             return {
-                "output_url": callback_data.get("localUrl", [None])[0],
+                "output_url": callback_data.get("localUrls", [None])[0],
                 "options": callback_data.get("options", {})
             }
         elif status == "failed":

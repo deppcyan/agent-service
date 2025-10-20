@@ -50,20 +50,25 @@ class AsyncAPIServiceNode(APIServiceNode):
             # Prepare request data
             request_data = self._prepare_request(self.input_values)
             
-            # Register callback handler
-            logger.debug(f"{self.service_name}: Registering callback handler for URL: {callback_url}")
+            # Make request first to get job id
+            response = await self._make_request(request_data)
+            
+            # Extract job id from response
+            if not response.get("id"):
+                raise ValueError("No job id returned from service")
+            job_id = response["id"]
+            logger.info(f"{self.service_name}: Got job id: {job_id}")
+            
+            # Register callback handler with job id
+            logger.debug(f"{self.service_name}: Registering callback handler for job: {job_id}")
             callback_manager.register_handler(
-                self.service_name,
-                self.node_id,
+                job_id,
                 self._handle_callback
             )
             
-            # Make request
-            await self._make_request(request_data)
-            
             # Wait for callback
-            logger.info("{self.service_name}: Waiting for callback")
-            callback_data = await callback_manager.wait_for_callback(self.node_id, timeout)
+            logger.info(f"{self.service_name}: Waiting for callback for job: {job_id}")
+            callback_data = await callback_manager.wait_for_callback(job_id, timeout)
             
             # Handle callback data
             logger.debug(f"{self.service_name}: Processing callback data {json.dumps(callback_data, indent=4)}")
@@ -74,5 +79,7 @@ class AsyncAPIServiceNode(APIServiceNode):
             
         except Exception as e:
             logger.error(f"{self.service_name}: Error processing request: {str(e)}")
-            callback_manager.unregister_handler(self.node_id)
+            # Only unregister if we got as far as registering (job_id exists in local scope)
+            if 'job_id' in locals():
+                callback_manager.unregister_handler(job_id)
             raise

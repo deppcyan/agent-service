@@ -12,7 +12,7 @@ class CallbackManager:
         # Store pending callbacks
         self.pending_callbacks: Dict[str, asyncio.Future] = {}
     
-    def register_handler(self, service: str, job_id: str, 
+    def register_handler(self, job_id: str, 
                         handler: Callable[[Dict[str, Any]], Awaitable[None]]) -> None:
         """Register a callback handler for a specific service and job"""
         # Store handler directly by job_id

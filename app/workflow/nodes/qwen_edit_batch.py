@@ -84,7 +84,6 @@ class QwenEditBatchNode(WorkflowNode):
                    f"{len([url for url in output_urls if not url])} failed")
         
         self.output_values = {
-            "output_urls": output_urls,
-            "options_list": options_list
+            "output_urls": output_urls
         }
         return self.output_values

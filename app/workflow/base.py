@@ -34,9 +34,12 @@ class WorkflowNode:
     
     def validate_inputs(self) -> bool:
         """Validate that all required inputs are present"""
+        from app.utils.logger import logger
+        
         for port in self.input_ports.values():
             if port.required and port.name not in self.input_values:
                 if port.default_value is None:
+                    logger.error(f"Required input '{port.name}' is missing for node '{self.__class__.__name__}'")
                     return False
                 self.input_values[port.name] = port.default_value
         return True
