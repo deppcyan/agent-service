@@ -23,6 +23,11 @@ async def lifespan(app: FastAPI):
     
     # Initialize service URL
     init_service_url()
+    
+    # Load workflow nodes
+    from app.workflow.registry import node_registry
+    node_registry.load_builtin_nodes()
+    node_registry.load_custom_nodes("app/workflow/custom_nodes")
         
     # Startup complete
     yield

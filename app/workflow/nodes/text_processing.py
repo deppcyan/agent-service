@@ -1,4 +1,4 @@
-from ..base import WorkflowNode
+from app.workflow.base import WorkflowNode
 from typing import Dict, Any
 
 class TextConcatenateNode(WorkflowNode):
