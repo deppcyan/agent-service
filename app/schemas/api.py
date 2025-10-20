@@ -14,6 +14,8 @@ class Options(BaseModel):
     upload_wasabi_url: Optional[str] = Field(None, description="Custom Wasabi upload URL")
     resolution: Optional[str] = Field(None, description="Output resolution (e.g., '512x512')")
     crf: Optional[int] = Field(None, description="Video CRF value")
+    width: Optional[int] = Field(768, description="Output width in pixels")
+    height: Optional[int] = Field(768, description="Output height in pixels")
 
 class GenerateRequest(BaseModel):
     model: str = Field(..., description="Model name to use")

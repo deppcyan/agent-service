@@ -34,10 +34,13 @@ class JobManager:
         # Store job state
         self.job_states[job_state.id] = job_state
         
-        # Create workflow executor
+        # Create workflow executor with input and options
         workflow = self.workflow_manager.create_workflow_executor(
             job_state.model,
-            job_state.input
+            {
+                "input": job_state.input,
+                "options": job_state.options
+            }
         )
         
         if not workflow:
@@ -48,7 +51,7 @@ class JobManager:
             raise ValueError(f"Workflow not found: {job_state.model}")
         
         # Start workflow execution
-        task = asyncio.create_task(self._execute_workflow(job_state.id, workflow, job_state.input))
+        task = asyncio.create_task(self._execute_workflow(job_state.id, workflow, {"input": job_state.input, "options": job_state.options}))
         self.active_tasks[job_state.id] = task
         
         # Calculate queue stats

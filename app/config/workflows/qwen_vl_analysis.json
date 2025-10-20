@@ -1,17 +1,42 @@
 {
     "nodes": {
+        "video_concat": {
+            "type": "VideoConcatNode",
+            "inputs": {
+                "api_url": "http://192.168.0.238:8000/v1/generate",
+                "timeout": 300,
+                "callback_url": "http://192.168.0.238:8001/webhook",
+                "video_urls": [],
+                "options": {}
+            }
+        },
+        "video_batch": {
+            "type": "WanI2VBatchNode",
+            "inputs": {
+                "api_url": "http://192.168.0.238:8000/v1/generate",
+                "timeout": 300,
+                "callback_url": "http://192.168.0.238:8001/webhook",
+                "image_urls": [],
+                "prompts": [],
+                "width": null,
+                "height": null,
+                "duration": 5,
+                "output_format": "mp4"
+            }
+        },
         "preprocess": {
             "type": "PreprocessNode",
             "inputs": {
                 "input": [
                     {
                         "type": "image",
-                        "value": "https://watermarked-vidoes.s3.us-west-1.amazonaws.com/why.jpg"
+                        "url": "$input[0].url"
                     }
                 ],
                 "options": {
-                    "prompt": "Analyze this image in detail and describe what you see."
-                    
+                    "prompt": "$options.prompt",
+                    "width": "$options.width",
+                    "height": "$options.height"
                 }
             }
         },
@@ -19,7 +44,7 @@
             "type": "QwenVLNode",
             "inputs": {
                 "api_url": "https://50067120bfc96748-8000.us-ca-6.gpu-instance.novita.ai/v1/generate",
-                "system_prompt": "输入方式】：参考图 + 文本描述\n【延展目标】：基于上一张图的画面风格、人物外形、光影氛围、镜头语言，生成下一张分镜图，使得剧情延续\n\n保持人物外观一致\n色调光影与参考图统一\n背景元素延续，不突变\n构图具备电影感（景别 / 光影 / 空间层次）\n\n镜头类型（特写 / 中景 / 远景 / 俯拍 / 跟拍 / 环绕 / 侧移 / 拉远）\n镜头运动节奏（慢推 / 快切 / 手持感）\n\n人物发色、身形不变\n服饰延续衔接，不跳变\n动作表情是上一个镜头的自然推进\n背景环境连续递进\n\n高清画面\n电影级光影\n真实材质\n无噪点无畸变\n可作为下一张分镜生成基础\n\n输出时以Next Scene:开头，后面马上接文字。每一段文字是连续的，没有特殊符号，没有多余的解释，每一段文字100字左右，直接输出内容",
+                "system_prompt": "输入方式】：参考图 + 文本描述\n【延展目标】：基于上一张图的画面风格、人物外形、光影氛围、镜头语言，生成下一张分镜图，使得剧情延续\n\n保持人物外观一致\n色调光影与参考图统一\n背景元素延续，不突变\n构图具备电影感（景别 / 光影 / 空间层次）\n\n镜头类型（特写 / 中景 / 远景 / 俯拍 / 跟拍 / 环绕 / 侧移 / 拉远）\n镜头运动节奏（慢推 / 快切 / 手持感）\n\n人物发色、身形不变\n服饰延续衔接，不跳变\n动作表情是上一个镜头的自然推进\n背景环境连续递进\n\n高清画面\n电影级光影\n真实材质\n无噪点无畸变\n可作为下一张分镜生成基础\n\n输出时以Next Scene:开头，后面马上接文字。每一段文字是连续的，没有特殊符号，没有多余的解释，每一段文字100字左右，直接输出内容,最少输出2段。",
                 "timeout": 300
             }
         },
@@ -38,8 +63,8 @@
                 "callback_url": "http://192.168.0.238:8001/webhook",
                 "image_urls": [],
                 "prompts": [],
-                "width": 768,
-                "height": 768
+                "width": null,
+                "height": null
             }
         }
     },
@@ -79,6 +104,48 @@
             "from_port": "image_urls",
             "to_node": "edit_batch",
             "to_port": "image_urls"
+        },
+        {
+            "from_node": "edit_batch",
+            "from_port": "output_urls",
+            "to_node": "video_batch",
+            "to_port": "image_urls"
+        },
+        {
+            "from_node": "storyboard_parser",
+            "from_port": "prompts",
+            "to_node": "video_batch",
+            "to_port": "prompts"
+        },
+        {
+            "from_node": "preprocess",
+            "from_port": "width",
+            "to_node": "edit_batch",
+            "to_port": "width"
+        },
+        {
+            "from_node": "preprocess",
+            "from_port": "height",
+            "to_node": "edit_batch",
+            "to_port": "height"
+        },
+        {
+            "from_node": "preprocess",
+            "from_port": "width",
+            "to_node": "video_batch",
+            "to_port": "width"
+        },
+        {
+            "from_node": "preprocess",
+            "from_port": "height",
+            "to_node": "video_batch",
+            "to_port": "height"
+        },
+        {
+            "from_node": "video_batch",
+            "from_port": "output_urls",
+            "to_node": "video_concat",
+            "to_port": "video_urls"
         }
     ]
 }

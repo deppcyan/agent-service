@@ -43,7 +43,6 @@ class AsyncAPIServiceNode(APIServiceNode):
             raise ValueError("Required inputs missing")
             
         # Get callback URL and timeout
-        callback_url = self.input_values["callback_url"]
         timeout = self.input_values.get("timeout")
         
         try:
@@ -74,7 +73,7 @@ class AsyncAPIServiceNode(APIServiceNode):
             logger.debug(f"{self.service_name}: Processing callback data {json.dumps(callback_data, indent=4)}")
             result = await self._handle_callback(callback_data)
             
-            logger.info("{self.service_name}: Request completed successfully")
+            logger.info(f"{self.service_name}: Request completed successfully")
             return result
             
         except Exception as e:

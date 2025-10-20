@@ -39,18 +39,15 @@ class APIServiceNode(WorkflowNode, ABC):
         url = f"{self.input_values['api_url']}"
         
         async with aiohttp.ClientSession() as session:
-            logger.info(f"Making POST request to {url}", 
-                       extra={"service": self.service_name})
+            logger.info(f"{self.service_name}: Making POST request to {url}")
             async with session.post(url, headers=headers, json=data) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    logger.error(f"Service request failed: {error_text}",
-                               extra={"service": self.service_name})
+                    logger.error(f"{self.service_name}: Service request failed: {error_text}")
                     raise Exception(f"Service call failed with status {response.status}: {error_text}")
                     
                 response_data = await response.json()
-                logger.info("Received response from service", 
-                          extra={"service": self.service_name})
+                logger.info(f"{self.service_name}:  Received response from service")
                 return response_data
                 
     @abstractmethod

@@ -38,11 +38,9 @@ class WanI2VNode(AsyncAPIServiceNode):
                 "output_format": input_data.get("output_format", "mp4"),
                 "duration": input_data.get("duration", 5),
                 "seed": input_data.get("seed")
-            }
+            },
+            "webhookUrl": input_data.get("callback_url")
         }
-        
-        if callback_url:
-            request["webhookUrl"] = callback_url
         
         return request
     
@@ -52,7 +50,7 @@ class WanI2VNode(AsyncAPIServiceNode):
         if status == "completed":
             return {
                 "status": "completed",
-                "output_url": callback_data.get("localUrl", [None])[0],
+                "output_url": callback_data.get("localUrls", [None])[0],
                 "options": callback_data.get("options", {})
             }
         elif status == "failed":

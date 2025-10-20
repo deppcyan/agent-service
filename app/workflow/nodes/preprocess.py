@@ -28,6 +28,8 @@ class PreprocessNode(WorkflowNode):
         self.add_output_port("upload_wasabi_url", "string")
         self.add_output_port("resolution", "string")
         self.add_output_port("crf", "number")
+        self.add_output_port("width", "number")
+        self.add_output_port("height", "number")
     
     def _consolidate_inputs(self, inputs: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Consolidate inputs of the same type into single/list parameters"""
@@ -38,7 +40,7 @@ class PreprocessNode(WorkflowNode):
             item_type = item.get("type")
             if item_type not in type_map:
                 type_map[item_type] = []
-            type_map[item_type].append(item.get("value"))
+            type_map[item_type].append(item.get("url"))
         
         # Convert to singular/plural form based on count
         result = {}
@@ -87,7 +89,9 @@ class PreprocessNode(WorkflowNode):
             "upload_url": processed_options.get("upload_url"),
             "upload_wasabi_url": processed_options.get("upload_wasabi_url"),
             "resolution": processed_options.get("resolution"),
-            "crf": processed_options.get("crf")
+            "crf": processed_options.get("crf"),
+            "width": processed_options.get("width"),
+            "height": processed_options.get("height")
         }
         
         # Update with consolidated inputs

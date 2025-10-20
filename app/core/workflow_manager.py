@@ -59,11 +59,14 @@ class WorkflowManager:
             return None
             
         try:
-            # Update input values in the configuration
+            # Only update preprocess node with input data
             for node_id, node_config in workflow_config.nodes.items():
-                if node_config.get("inputs") is None:
-                    node_config["inputs"] = {}
-                node_config["inputs"].update(input_data)
+                if node_config["type"] == "PreprocessNode":
+                    if node_config.get("inputs") is None:
+                        node_config["inputs"] = {}
+                    # Extract input and options from input_data
+                    node_config["inputs"]["input"] = input_data.get("input", [])
+                    node_config["inputs"]["options"] = input_data.get("options", {})
             
             # Convert configuration to graph and create executor
             graph = workflow_config.to_graph()
