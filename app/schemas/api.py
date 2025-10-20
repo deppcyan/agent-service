@@ -45,17 +45,20 @@ class JobState(BaseModel):
 
 class WebhookResponse(BaseModel):
     id: str = Field(..., description="Job ID")
-    created_at: str = Field(..., description="Job creation time")
+    created_at: str = Field(..., description="Job creation time", alias="createdAt")
     status: str = Field(..., description="Job status")
     model: str = Field(..., description="Model name")
     input: List[InputItem] = Field(..., description="Input data")
-    webhook_url: str = Field(..., description="Webhook URL")
+    webhook_url: str = Field(..., description="Webhook URL", alias="webhookUrl")
     options: Dict[str, Any] = Field(default={}, description="Job options")
     stream: bool = Field(default=True, description="Stream mode")
-    output_url: Optional[str] = Field(None, description="Output S3 URL")
-    local_url: Optional[str] = Field(None, description="Local file URL")
-    output_wasabi_url: Optional[str] = Field(None, description="Output Wasabi URL")
+    output_url: Optional[str] = Field(None, description="Output S3 URL", alias="outputUrl")
+    local_url: Optional[str] = Field(None, description="Local file URL", alias="localUrl")
+    output_wasabi_url: Optional[str] = Field(None, description="Output Wasabi URL", alias="outputWasabiUrl")
     error: Optional[str] = Field(None, description="Error message if failed")
+    
+    class Config:
+        allow_population_by_field_name = True
 
 class FileInfo(BaseModel):
     file_id: str = Field(..., description="File ID")
