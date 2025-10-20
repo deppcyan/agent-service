@@ -2,6 +2,7 @@ from typing import Dict, Any, Optional
 from app.workflow.nodes.api_service_base import APIServiceNode
 from app.utils.logger import logger
 from app.core.callback_manager import callback_manager
+import json
 
 class AsyncAPIServiceNode(APIServiceNode):
     """Asynchronous API service node that waits for callback"""
@@ -50,8 +51,7 @@ class AsyncAPIServiceNode(APIServiceNode):
             request_data = self._prepare_request(self.input_values)
             
             # Register callback handler
-            logger.debug(f"Registering callback handler for URL: {callback_url}",
-                       extra={"service": self.service_name})
+            logger.debug(f"{self.service_name}: Registering callback handler for URL: {callback_url}")
             callback_manager.register_handler(
                 self.service_name,
                 self.node_id,
@@ -62,21 +62,17 @@ class AsyncAPIServiceNode(APIServiceNode):
             await self._make_request(request_data)
             
             # Wait for callback
-            logger.info("Waiting for callback",
-                      extra={"service": self.service_name})
+            logger.info("{self.service_name}: Waiting for callback")
             callback_data = await callback_manager.wait_for_callback(self.node_id, timeout)
             
             # Handle callback data
-            logger.debug("Processing callback data",
-                       extra={"service": self.service_name})
+            logger.debug(f"{self.service_name}: Processing callback data {json.dumps(callback_data, indent=4)}")
             result = await self._handle_callback(callback_data)
             
-            logger.info("Request completed successfully",
-                      extra={"service": self.service_name})
+            logger.info("{self.service_name}: Request completed successfully")
             return result
             
         except Exception as e:
-            logger.error(f"Error processing request: {str(e)}",
-                       extra={"service": self.service_name})
+            logger.error(f"{self.service_name}: Error processing request: {str(e)}")
             callback_manager.unregister_handler(self.node_id)
             raise

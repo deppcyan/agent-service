@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from app.workflow.nodes.api_service_base import APIServiceNode
 from app.utils.logger import logger
+import json
 
 class SyncAPIServiceNode(APIServiceNode):
     """Synchronous API service node that processes response immediately"""
@@ -33,15 +34,12 @@ class SyncAPIServiceNode(APIServiceNode):
             response = await self._make_request(request_data)
             
             # Transform response
-            logger.debug("Transforming response data",
-                      extra={"service": self.service_name})
+            logger.debug(f"{self.service_name}: Transforming response data: {json.dumps(response, indent=4)}")
             result = await self._transform_response(response)
             
-            logger.info("Request completed successfully",
-                      extra={"service": self.service_name})
+            logger.info(f"{self.service_name}: Request completed successfully")
             return result
             
         except Exception as e:
-            logger.error(f"Error processing request: {str(e)}",
-                       extra={"service": self.service_name})
+            logger.error(f"{self.service_name}: Error processing request: {str(e)}")
             raise
