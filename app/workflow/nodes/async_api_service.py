@@ -48,6 +48,7 @@ class AsyncAPIServiceNode(APIServiceNode):
         try:
             # Prepare request data
             request_data = self._prepare_request(self.input_values)
+            logger.debug(f"{self.service_name}: Prepared request data: {json.dumps(request_data, indent=4)}")
             
             # Make request first to get job id
             response = await self._make_request(request_data)
