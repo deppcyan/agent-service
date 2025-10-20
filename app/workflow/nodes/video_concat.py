@@ -1,7 +1,7 @@
 from typing import Dict, Any, List, Optional
-from app.workflow.nodes.api_service_base import APIServiceNode
+from app.workflow.nodes.async_api_service import AsyncAPIServiceNode
 
-class VideoConcatNode(APIServiceNode):
+class VideoConcatNode(AsyncAPIServiceNode):
     """Node for video concatenation service"""
     
     service_name = "video-concat"

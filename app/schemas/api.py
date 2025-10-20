@@ -31,6 +31,7 @@ class JobResponse(BaseModel):
 class JobState(BaseModel):
     id: str = Field(..., description="Job ID")
     created_at: datetime = Field(..., description="Job creation time")
+    completed_at: datetime = Field(None, description="Job completed time")
     status: str = Field(..., description="Job status")
     model: str = Field(..., description="Model name")
     input: List[Dict[str, Any]] = Field(..., description="Input data")
@@ -40,10 +41,11 @@ class JobState(BaseModel):
     local_url: Optional[str] = Field(None, description="Local file URL")
     output_wasabi_url: Optional[str] = Field(None, description="Output Wasabi URL")
     error: Optional[str] = Field(None, description="Error message if failed")
+    
 
 class WebhookResponse(BaseModel):
     id: str = Field(..., description="Job ID")
-    created_at: datetime = Field(..., description="Job creation time")
+    created_at: str = Field(..., description="Job creation time")
     status: str = Field(..., description="Job status")
     model: str = Field(..., description="Model name")
     input: List[InputItem] = Field(..., description="Input data")
@@ -54,11 +56,6 @@ class WebhookResponse(BaseModel):
     local_url: Optional[str] = Field(None, description="Local file URL")
     output_wasabi_url: Optional[str] = Field(None, description="Output Wasabi URL")
     error: Optional[str] = Field(None, description="Error message if failed")
-
-    class Config:
-        json_encoders = {
-            datetime: lambda dt: dt.isoformat()
-        }
 
 class FileInfo(BaseModel):
     file_id: str = Field(..., description="File ID")

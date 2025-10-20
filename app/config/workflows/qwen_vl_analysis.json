@@ -1,0 +1,29 @@
+{
+    "nodes": {
+        "image_analysis": {
+            "type": "QwenVLNode",
+            "inputs": {
+                "api_url": "https://50067120bfc96748-8000.us-ca-6.gpu-instance.novita.ai/v1/generate",
+                "image_url": "https://watermarked-vidoes.s3.us-west-1.amazonaws.com/why.jpg",
+                "prompt": "Analyze this image in detail and describe what you see.",
+                "system_prompt": "You are a helpful assistant that specializes in detailed image analysis.",
+                "seed": 42,
+                "timeout": 300
+            }
+        },
+        "word_counter": {
+            "type": "WordCountNode",
+            "inputs": {
+                "text": ""
+            }
+        }
+    },
+    "connections": [
+        {
+            "from_node": "image_analysis",
+            "from_port": "response",
+            "to_node": "word_counter",
+            "to_port": "text"
+        }
+    ]
+}

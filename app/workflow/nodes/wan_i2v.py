@@ -1,7 +1,7 @@
 from typing import Dict, Any, Optional
-from app.workflow.nodes.api_service_base import APIServiceNode
+from app.workflow.nodes.async_api_service import AsyncAPIServiceNode
 
-class WanI2VNode(APIServiceNode):
+class WanI2VNode(AsyncAPIServiceNode):
     """Node for WanI2V (Image to Video) service"""
     
     service_name = "wan-i2v"

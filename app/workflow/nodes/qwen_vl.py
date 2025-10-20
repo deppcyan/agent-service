@@ -1,7 +1,7 @@
-from typing import Dict, Any, Optional
-from app.workflow.nodes.api_service_base import APIServiceNode
+from typing import Dict, Any
+from app.workflow.nodes.sync_api_service import SyncAPIServiceNode
 
-class QwenVLNode(APIServiceNode):
+class QwenVLNode(SyncAPIServiceNode):
     """Node for QwenVL service"""
     
     service_name = "qwen-vl"
@@ -16,21 +16,28 @@ class QwenVLNode(APIServiceNode):
         self.add_input_port("seed", "number", False, 42)
         
         # Output ports
-        self.add_output_port("response", "object")
+        self.add_output_port("response", "string")
     
-    def _prepare_request(self, input_data: Dict[str, Any], 
-                        callback_url: Optional[str] = None) -> Dict[str, Any]:
-        request_data = {
+    def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        return {
             "image_url": input_data["image_url"],
             "prompt": input_data.get("prompt", ""),
             "system_prompt": input_data.get("system_prompt", ""),
             "seed": input_data.get("seed", 42)
         }
-        
-        if callback_url:
-            request_data["webhookUrl"] = callback_url
-            
-        return request_data
     
-    async def _handle_callback(self, callback_data: Dict[str, Any]) -> Dict[str, Any]:
-        return {"response": callback_data}
+    async def _transform_response(self, response_data: Dict[str, Any]) -> Dict[str, Any]:
+        # Check status first
+        status = response_data.get("status")
+        if status != "success":
+            error_msg = response_data.get("error", "Unknown error")
+            raise Exception(f"QwenVL service failed: {error_msg}")
+            
+        # Extract enhanced_prompt
+        enhanced_prompt = response_data.get("enhanced_prompt")
+        if not enhanced_prompt:
+            raise Exception("No enhanced_prompt in response")
+            
+        return {
+            "response": enhanced_prompt
+        }

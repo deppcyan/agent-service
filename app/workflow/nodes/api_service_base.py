@@ -1,11 +1,12 @@
 import os
 from typing import Dict, Any, Optional
 import aiohttp
+from abc import ABC, abstractmethod
 from app.workflow.base import WorkflowNode
 from app.utils.logger import logger
 from app.core.callback_manager import callback_manager
 
-class APIServiceNode(WorkflowNode):
+class APIServiceNode(WorkflowNode, ABC):
     """Base class for API service nodes"""
     
     category = "api_services"
@@ -23,17 +24,10 @@ class APIServiceNode(WorkflowNode):
             
         # Common input ports for API services
         self.add_input_port("api_url", "string", True)
-        self.add_input_port("callback_url", "string", False)
-        self.add_input_port("timeout", "number", False)
         
-    def _prepare_request(self, input_data: Dict[str, Any], 
-                        callback_url: Optional[str] = None) -> Dict[str, Any]:
+    def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare request data for the service. Must be implemented by child classes."""
         raise NotImplementedError("_prepare_request must be implemented by child classes")
-    
-    async def _handle_callback(self, callback_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle service callback data. Must be implemented by child classes."""
-        raise NotImplementedError("_handle_callback must be implemented by child classes")
         
     async def _make_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Make HTTP request to service"""
@@ -42,7 +36,7 @@ class APIServiceNode(WorkflowNode):
             "Content-Type": "application/json"
         }
         
-        url = f"{self.input_values['api_url']}/v1/generate"
+        url = f"{self.input_values['api_url']}"
         
         async with aiohttp.ClientSession() as session:
             logger.info(f"Making POST request to {url}", 
@@ -58,6 +52,11 @@ class APIServiceNode(WorkflowNode):
                 logger.info("Received response from service", 
                           extra={"service": self.service_name})
                 return response_data
+                
+    @abstractmethod
+    async def process(self) -> Dict[str, Any]:
+        """Process the node's inputs and return outputs. Must be implemented by child classes."""
+        pass
     
     async def process(self) -> Dict[str, Any]:
         """Process the node's inputs and return outputs"""

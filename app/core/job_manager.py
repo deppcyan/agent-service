@@ -148,11 +148,11 @@ class JobManager:
         job_state = self.job_states[job_id]
         if not job_state.webhook_url:
             return
-            
+                
         # Prepare webhook payload
         webhook_response = WebhookResponse(
             id=job_state.id,
-            created_at=job_state.created_at,
+            created_at=job_state.created_at.isoformat(),
             status=job_state.status,
             model=job_state.model,
             input=job_state.input,
@@ -217,7 +217,6 @@ class JobManager:
                     updates = {
                         "status": "completed",
                         "output_url": final_result.get("output_url"),
-                        "intermediate_results": results,  # Store all node results
                         "completed_at": datetime.now(timezone.utc)
                     }
                     await self.update_job_state(job_id, updates)
