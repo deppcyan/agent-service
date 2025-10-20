@@ -2,7 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import Optional, BinaryIO, Dict, Any
 import aioboto3
-from app.core.logger import logger
+from app.utils.logger import logger
 
 class S3Provider(ABC):
     """Abstract base class for S3 storage providers"""

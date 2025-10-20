@@ -3,8 +3,9 @@ from typing import Dict, Optional, List, Any
 from datetime import datetime, timezone
 from collections import defaultdict
 from app.schemas.api import JobState, WebhookResponse
-from app.core.logger import logger, pod_id
-from app.core.utils import calculate_wait_time, get_service_url
+from app.utils.logger import logger, pod_id
+from app.utils.utils import calculate_wait_time, get_service_url
+from app.workflow.executor import WorkflowExecutor
 import aiohttp
 
 class JobManager:
@@ -24,18 +25,19 @@ class JobManager:
         # Task tracking
         self.active_tasks: Dict[str, asyncio.Task] = {}
         
-        # Workflow registry
-        from app.config.workflows import workflow_registry
-        self.workflow_registry = workflow_registry
+        # Workflow manager
+        from app.core.workflow_manager import workflow_manager
+        self.workflow_manager = workflow_manager
     
     async def add_job(self, job_state: JobState) -> Dict[str, Any]:
         """Add a new job and start workflow execution"""
         # Store job state
         self.job_states[job_state.id] = job_state
         
-        # Create workflow instance
-        workflow = self.workflow_registry.create_workflow(
-            job_state.model
+        # Create workflow executor
+        workflow = self.workflow_manager.create_workflow_executor(
+            job_state.model,
+            job_state.input
         )
         
         if not workflow:
@@ -192,7 +194,7 @@ class JobManager:
             }
         }
     
-    async def _execute_workflow(self, job_id: str, workflow: Any, input_data: Dict[str, Any]) -> None:
+    async def _execute_workflow(self, job_id: str, workflow_executor: WorkflowExecutor, input_data: Dict[str, Any]) -> None:
         """Execute workflow for a job"""
         try:
             # Get job state to access options
@@ -204,13 +206,18 @@ class JobManager:
             # Execute workflow with both input and options
             async with self.processing_semaphore:
                 try:
-                    result = await workflow.execute(job_id, input_data, job_state.options)
+                    # Execute the workflow graph
+                    results = await workflow_executor.execute()
+                    
+                    # Get final output from the last node
+                    final_node = list(workflow_executor.graph.nodes.values())[-1]
+                    final_result = workflow_executor.get_node_result(final_node.node_id)
                     
                     # Update job state with results and trigger webhook
                     updates = {
                         "status": "completed",
-                        "output_url": result.get("output_url"),
-                        "intermediate_results": result.get("intermediate_results", {}),
+                        "output_url": final_result.get("output_url"),
+                        "intermediate_results": results,  # Store all node results
                         "completed_at": datetime.now(timezone.utc)
                     }
                     await self.update_job_state(job_id, updates)

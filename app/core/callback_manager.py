@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, Any, Optional, Callable, Awaitable
 from datetime import datetime, timezone
-from app.core.logger import logger
+from app.utils.logger import logger
 
 class CallbackManager:
     """Manages service callbacks and their routing"""
@@ -33,11 +33,11 @@ class CallbackManager:
                 self.pending_callbacks[job_id].cancel()
             del self.pending_callbacks[job_id]
     
-    async def handle_callback(self, service: str, data: Dict[str, Any]) -> None:
+    async def handle_callback(self, data: Dict[str, Any]) -> None:
         """Handle incoming callback from a service"""
         job_id = data.get("id")
         if not job_id:
-            logger.error(f"Received callback without job_id from {service}", 
+            logger.error(f"Received callback without job_id", 
                         extra={"job_id": "system"})
             return
         
@@ -56,7 +56,7 @@ class CallbackManager:
                 # Clean up handler
                 self.unregister_handler(job_id)
             else:
-                logger.warning(f"No handler found for job {job_id} from {service}", 
+                logger.warning(f"No handler found for job {job_id}", 
                              extra={"job_id": job_id})
         
         except Exception as e:

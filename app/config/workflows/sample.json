@@ -1,0 +1,37 @@
+{
+    "nodes": {
+        "preprocess": {
+            "type": "PreprocessNode",
+            "inputs": {
+                "input_file": "",
+                "parameters": {}
+            }
+        },
+        "inference": {
+            "type": "ServiceCallNode",
+            "inputs": {
+                "service": "inference_service",
+                "endpoint": "/v1/predict",
+                "timeout": 300
+            }
+        },
+        "postprocess": {
+            "type": "PostprocessNode",
+            "inputs": {}
+        }
+    },
+    "connections": [
+        {
+            "from_node": "preprocess",
+            "from_port": "output",
+            "to_node": "inference",
+            "to_port": "input"
+        },
+        {
+            "from_node": "inference",
+            "from_port": "result",
+            "to_node": "postprocess",
+            "to_port": "input"
+        }
+    ]
+}

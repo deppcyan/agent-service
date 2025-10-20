@@ -5,48 +5,41 @@ from datetime import datetime, timezone
 import uuid
 from typing import Dict, Any
 
-from app.core.logger import logger, pod_id
-from app.core.utils import verify_api_key, init_service_url, get_service_url
-from app.config.services import config
+from app.utils.logger import logger, pod_id
+from app.utils.utils import verify_api_key, init_service_url, get_service_url
 from app.core.job_manager import job_manager
-from app.core.storage.file_manager import output_file_manager
+from app.storage.file_manager import output_file_manager
 from app.core.callback_manager import callback_manager
 from app.schemas.api import (
     GenerateRequest, JobResponse, JobState, FileInfo,
     HealthResponse, CancelResponse, PurgeResponse
 )
 
-app = FastAPI()
+from contextlib import asynccontextmanager
 
-# Get model name to service name mapping from config
-SERVICE_NAMES = config.get_model_to_service_mapping()
-
-@app.on_event("startup")
-async def startup_event():
-    """Start background tasks on startup"""
-   
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for FastAPI application"""
+    
     # Initialize service URL
     init_service_url()
+        
+    # Startup complete
+    yield
     
-    # Get API key from environment
-    api_key = os.getenv('DIGEN_API_KEY')
-    if not api_key:
-        raise ValueError("DIGEN_API_KEY environment variable not set")
+    # Cleanup on shutdown (if needed)
+    pass
+
+app = FastAPI(lifespan=lifespan)
     
-    # Initialize workflows with service URLs and callback URLs
-    # Initialize workflow registry
-    from app.config.workflows import workflow_registry
-    
-@app.post("/webhook/{service_name}")
+@app.post("/webhook")
 async def handle_webhook(
-    service_name: str,
     request: Request
 ):
     """
     统一的 webhook 处理接口
     
     Args:
-        service_name: 服务名称
         request: webhook 请求
     """
     
@@ -59,26 +52,21 @@ async def handle_webhook(
         if not job_id:
             raise HTTPException(status_code=400, detail="Missing job ID in webhook data")
         
-        logger.info(
-            f"Received webhook from {service_name} for job {job_id}",
-            extra={"job_id": job_id}
-        )
-        
         # 处理回调
-        await callback_manager.handle_callback(service_name, data)
+        await callback_manager.handle_callback(data)
         
         return {"status": "success"}
         
     except ValueError as e:
         logger.error(
-            f"Invalid webhook data from {service_name}: {str(e)}",
+            f"Invalid webhook data : {str(e)}",
             extra={"job_id": data.get("id", "unknown")}
         )
         raise HTTPException(status_code=400, detail=str(e))
         
     except Exception as e:
         logger.error(
-            f"Error processing webhook from {service_name}: {str(e)}",
+            f"Error processing webhook : {str(e)}",
             extra={"job_id": data.get("id", "unknown")}
         )
         raise HTTPException(status_code=500, detail="Internal server error")
