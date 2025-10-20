@@ -152,16 +152,16 @@ class JobManager:
         # Prepare webhook payload
         webhook_response = WebhookResponse(
             id=job_state.id,
-            created_at=job_state.created_at.isoformat(),
+            createdAt=job_state.created_at.isoformat(),
             status=job_state.status,
             model=job_state.model,
             input=job_state.input,
-            webhook_url=job_state.webhook_url,
+            webhookUrl=job_state.webhook_url,
             options=job_state.options,
             stream=False,
-            output_url=job_state.output_url,
-            local_url=job_state.local_url,
-            output_wasabi_url=job_state.output_wasabi_url,
+            outputUrl=job_state.output_url,
+            localUrl=job_state.local_url,
+            outputWasabiUrl=job_state.output_wasabi_url,
             error=job_state.error
         )
         
