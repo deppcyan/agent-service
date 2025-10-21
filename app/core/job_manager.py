@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from typing import Dict, Optional, List, Any
 from datetime import datetime, timezone
 from collections import defaultdict
@@ -6,6 +7,8 @@ from app.schemas.api import JobState, WebhookResponse
 from app.utils.logger import logger, pod_id
 from app.utils.utils import calculate_wait_time, get_service_url
 from app.workflow.executor import WorkflowExecutor
+from app.core.model_config import get_model_config
+from app.core.preprocess import preprocess_job
 import aiohttp
 
 class JobManager:
@@ -29,42 +32,70 @@ class JobManager:
         from app.core.workflow_manager import workflow_manager
         self.workflow_manager = workflow_manager
     
-    async def add_job(self, job_state: JobState) -> Dict[str, Any]:
+    async def add_job(self, model: str, input: List[Dict[str, Any]], webhook_url: Optional[str] = None, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Add a new job and start workflow execution"""
-        # Store job state
-        self.job_states[job_state.id] = job_state
-        
-        # Create workflow executor with input and options
-        workflow = self.workflow_manager.create_workflow_executor(
-            job_state.model,
-            {
-                "input": job_state.input,
-                "options": job_state.options
-            }
-        )
-        
-        if not workflow:
+        try:
+            # Get model configuration
+            model_config = get_model_config(model)
+            
+            # Generate task ID
+            task_id = str(uuid.uuid4())
+            
+            # Create job state with task ID as job ID
+            job_state = JobState(
+                id=task_id,
+                created_at=datetime.now(timezone.utc),
+                status="pending",
+                model=model,
+                input=input,
+                webhook_url=webhook_url,
+                options=options or {},
+                pod_id=pod_id,
+                pod_url=get_service_url(),
+                workflow_task_id=task_id
+            )
+            
+            # Store job state
+            self.job_states[task_id] = job_state
+            
+            # Preprocess job data
+            preprocessed_data = await preprocess_job(
+                {
+                    'model': model,
+                    'options': options or {},
+                    'input': input
+                },
+                model_config,
+                task_id
+            )
+            
+            # Create local webhook URL for workflow callback
+            local_webhook_url = f"http://localhost:8001/v1/workflow/webhook/{job_state.id}"
+            
+            # Start workflow execution with webhook callback and preprocessed data
+            workflow_task_id = await self.workflow_manager.execute_workflow(
+                preprocessed_data["workflow"],
+                local_webhook_url
+            )
+            
+        except Exception as e:
+            # Update job state with error
             await self.update_job_state(job_state.id, {
                 "status": "failed",
-                "error": f"Workflow not found: {job_state.model}"
+                "error": str(e)
             })
-            raise ValueError(f"Workflow not found: {job_state.model}")
+            raise
         
-        # Start workflow execution
-        task = asyncio.create_task(self._execute_workflow(job_state.id, workflow, {"input": job_state.input, "options": job_state.options}))
-        self.active_tasks[job_state.id] = task
+        # Update job state with task ID
+        job_state.workflow_task_id = workflow_task_id
         
         # Calculate queue stats
-        '''
         current_queue_size = len([job for job in self.job_states.values() 
                                 if job.status in ['pending', 'processing']])
         estimated_wait_time = calculate_wait_time(self.job_states)
-        '''
-
-        current_queue_size = 0
-        estimated_wait_time = 0
+        
         return {
-            "id": job_state.id,
+            "id": task_id,
             "pod_id": pod_id,
             "queue_position": current_queue_size,
             "estimated_wait_time": estimated_wait_time,
@@ -104,15 +135,9 @@ class JobManager:
         if job_state.status in ['completed', 'failed', 'cancelled']:
             raise ValueError(f"Cannot cancel job in {job_state.status} state")
         
-        # Cancel active task
-        if job_id in self.active_tasks:
-            task = self.active_tasks[job_id]
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-            del self.active_tasks[job_id]
+        # Cancel workflow task if exists
+        if hasattr(job_state, 'workflow_task_id'):
+            await self.workflow_manager.cancel_workflow(job_state.workflow_task_id)
         
         # Update state with cancellation time
         updates = {
@@ -121,9 +146,6 @@ class JobManager:
             "completed_at": datetime.now(timezone.utc)
         }
         await self.update_job_state(job_id, updates)
-        
-        # Send cancellation webhook
-        await self._send_webhook(job_id)
         
         # Remove from states
         del self.job_states[job_id]
@@ -197,63 +219,65 @@ class JobManager:
             }
         }
     
-    async def _execute_workflow(self, job_id: str, workflow_executor: WorkflowExecutor, input_data: Dict[str, Any]) -> None:
-        """Execute workflow for a job"""
-        try:
-            # Get job state to access options
-            job_state = self.job_states[job_id]
+    async def _handle_workflow_callback(self, job_id: str, status: str, result: Optional[Dict[str, Any]] = None, error: Optional[str] = None) -> None:
+        """Handle workflow completion callback"""
+        if job_id not in self.job_states:
+            return
             
-            # Update job status to processing
-            await self.update_job_state(job_id, {"status": "processing"})
+        job_state = self.job_states[job_id]
+        
+        # Update job state based on workflow status
+        updates = {
+            "status": status,
+            "completed_at": datetime.now(timezone.utc)
+        }
+        
+        if status == "completed" and result:
+            # Get model config to map outputs
+            model_config = get_model_config(job_state.model)
+            # Map outputs according to output_mapping
+            for output_key, mapping in model_config.output_mapping.items():
+                node_id = mapping["node_id"]
+                output_key_name = mapping["output_key"]
+                # Get the output value from the result using node_id
+                if node_id in result and output_key_name in result[node_id]:
+                    updates[output_key] = result[node_id][output_key_name]
+        elif error:
+            updates["error"] = error
             
-            # Execute workflow with both input and options
-            async with self.processing_semaphore:
-                try:
-                    # Execute the workflow graph
-                    results = await workflow_executor.execute()
-                    
-                    # Get final output from the last node
-                    final_node = list(workflow_executor.graph.nodes.values())[-1]
-                    final_result = workflow_executor.get_node_result(final_node.node_id)
-                    
-                    # Update job state with results and trigger webhook
-                    updates = {
-                        "status": "completed",
-                        "output_url": final_result.get("output_url"),
-                        "completed_at": datetime.now(timezone.utc)
-                    }
-                    await self.update_job_state(job_id, updates)
-                    await self._send_webhook(job_id)  # 成功时发送回调
-                    
-                except asyncio.CancelledError:
-                    logger.info(f"Workflow execution cancelled for job {job_id}", 
-                              extra={"job_id": job_id})
-                    # 取消时的状态更新和回调在 cancel_job 中处理
-                    raise
-                    
-                except Exception as e:
-                    error_msg = f"Workflow execution failed: {str(e)}"
-                    logger.error(error_msg, extra={"job_id": job_id})
-                    # 更新失败状态并发送回调
-                    updates = {
-                        "status": "failed",
-                        "error": error_msg,
-                        "completed_at": datetime.now(timezone.utc)
-                    }
-                    await self.update_job_state(job_id, updates)
-                    await self._send_webhook(job_id)  # 失败时发送回调
-                    raise
-                
-        except asyncio.CancelledError:
-            # Job was cancelled, state and webhook already handled in cancel_job
-            pass
-        except Exception as e:
-            # Error already logged and webhook sent
-            pass
-        finally:
-            # Clean up task tracking
-            if job_id in self.active_tasks:
-                del self.active_tasks[job_id]
+        await self.update_job_state(job_id, updates)
+        
+        # Send webhook to user if URL was provided
+        if hasattr(job_state, 'webhook_url') and job_state.webhook_url:
+            webhook_response = WebhookResponse(
+                id=job_state.id,
+                createdAt=job_state.created_at.isoformat(),
+                status=status,
+                model=job_state.model,
+                input=job_state.input,
+                webhookUrl=job_state.webhook_url,
+                options=job_state.options,
+                stream=False,
+                outputUrl=updates.get("output_url"),
+                localUrl=job_state.local_url,
+                outputWasabiUrl=job_state.output_wasabi_url,
+                error=updates.get("error")
+            )
+            
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(job_state.webhook_url, 
+                                        json=webhook_response.model_dump()) as response:
+                        if response.status != 200:
+                            logger.error(f"User webhook failed with status {response.status}", 
+                                    extra={"job_id": job_id})
+            except Exception as e:
+                logger.error(f"Failed to send user webhook: {str(e)}", 
+                            extra={"job_id": job_id})
+        
+        # Clean up job state if completed/failed/cancelled
+        if status in ["completed", "failed", "cancelled"]:
+            del self.job_states[job_id]
 
 # Create global job manager instance
 job_manager = JobManager()

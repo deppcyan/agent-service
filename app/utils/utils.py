@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from PIL import Image
 import numpy as np
 from fastapi import HTTPException, Header
-from .logger import logger, pod_id, gpu_vendor, novita_region
+from app.utils.logger import logger, pod_id, gpu_vendor, novita_region
 
 # Global service URL
 GLOBAL_SERVICE_URL: str = None
@@ -158,7 +158,7 @@ def calculate_wait_time(job_states: Dict[str, Any], avg_processing_time: float =
     Calculate estimated wait time
     
     Args:
-        job_states: Current job states dictionary
+        job_states: Current job states dictionary containing JobState objects
         avg_processing_time: Average processing time per second of video
     
     Returns:
@@ -167,9 +167,9 @@ def calculate_wait_time(job_states: Dict[str, Any], avg_processing_time: float =
     # Calculate queue processing time
     queue_processing_time = 0
     for job_id, state in job_states.items():
-        if state['status'] in ['pending', 'processing']:
+        if state.status in ['pending', 'processing']:
             # Get duration with default of 5 seconds
-            options = state.get('options', {})
+            options = state.options or {}
             job_duration = options.get('duration', 5) or 5
             queue_processing_time += job_duration * avg_processing_time
     

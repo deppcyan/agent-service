@@ -43,6 +43,7 @@ class JobState(BaseModel):
     local_url: Optional[str] = Field(None, description="Local file URL")
     output_wasabi_url: Optional[str] = Field(None, description="Output Wasabi URL")
     error: Optional[str] = Field(None, description="Error message if failed")
+    workflow_task_id: Optional[str] = Field(None, description="Workflow task ID")
     
 
 class WebhookResponse(BaseModel):
@@ -77,3 +78,8 @@ class CancelResponse(BaseModel):
 class PurgeResponse(BaseModel):
     removed: int = Field(..., description="Number of removed jobs")
     status: str = Field(..., description="Operation status")
+
+class WorkflowRequest(BaseModel):
+    workflow: Dict[str, Any] = Field(..., description="Workflow configuration")
+    input_data: Dict[str, Any] = Field(..., description="Input data for workflow")
+    webhook_url: str = Field(..., description="Webhook URL for workflow completion notification")

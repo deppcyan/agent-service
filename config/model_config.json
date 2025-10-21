@@ -1,0 +1,49 @@
+{
+    "default_model": "image-to-video",
+    "models": {
+         "image-to-video": {
+             "workflow_path": "config/workflows/image-to-video.json",
+             "required_inputs": ["image"],
+             "timeout_minutes": 1,
+             "default_params": {
+                
+             },
+             "parameter_mapping": {
+                 "seed": {
+                     "node_id": "image_analysis",
+                     "input_key": "seed"
+                 },
+                 "prompt": {
+                     "node_id": "image_analysis",
+                     "input_key": "prompt"
+                 },
+                 "width": {
+                    "node_id": "video_batch",
+                    "input_key": "width"
+                },
+                 "height": {
+                    "node_id": "video_batch",
+                    "input_key": "height"
+                }
+             },
+             "input_mapping": {
+                 "image": [
+                    {
+                     "node_id": "image_analysis",
+                     "input_key": "image_url"
+                    },
+                    {
+                        "node_id": "storyboard_parser",
+                        "input_key": "image_url"
+                    }
+                ]
+             },
+             "output_mapping": {
+                 "output_url": {
+                    "node_id": "video_concat",
+                    "output_key": "output_url"
+                 }
+             }
+         }
+    }
+}
