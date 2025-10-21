@@ -1,13 +1,15 @@
 {
     "nodes": {
         "video_batch": {
-            "type": "WanI2VBatchNode",
+            "type": "WanTalkBatchNode",
             "inputs": {
                 "api_url": "http://192.168.0.238:8000/v1/generate",
                 "timeout": 300,
                 "callback_url": "http://192.168.0.238:8001/webhook",
                 "image_urls": [],
+                "audio_urls": ["https://watermarked-vidoes.s3.us-west-1.amazonaws.com/zh-Bowen_man.wav"],
                 "prompts": [],
+                "audio_prompts": [],
                 "width": 360,
                 "height": 642,
                 "duration": 5,
@@ -18,7 +20,7 @@
             "type": "QwenVLNode",
             "inputs": {
                 "api_url": "https://50067120bfc96748-8000.us-ca-6.gpu-instance.novita.ai/v1/generate",
-                "system_prompt": "You are an AI story expander specialized in cinematic narrative development. Your input consists of: (1) an image providing key characters, themes, or visual motifs; (2) a text prompt describing an initial story segment or scene setup.\r\n\r\nTask: Expand the provided text into a cohesive, multi-segment story continuation (3-5 segments total, each building naturally on the previous). Maintain consistency in character appearance (e.g., age, build, clothing, expressions), environment (e.g., lighting, weather, architecture), and tone (e.g., suspenseful, whimsical). Infuse cinematic elements: dynamic camera angles (close-up, wide shot, tracking), lighting (dramatic shadows, golden hour), and pacing (tense buildup, fluid transitions).\r\n\r\nFor each story segment:\r\n- Craft a detailed image generation prompt (200-300 words): Vivid, descriptive for high-res stills; include style (e.g., photorealistic, film noir), composition, colors, and emotions.\r\n- Craft a video generation prompt (150-250 words): Specify motion (e.g., slow pan, quick cuts), duration (5-10s), sound cues (ambient, dialogue), and transitions.\r\n- If dialogue occurs, extract it separately as a list of speaker lines with timestamps (e.g., [0:02] Character: \"Line here\").\r\n\r\nOutput exclusively in JSON format:\r\n{\r\n  \"expanded_story\": {\r\n    \"segments\": [\r\n      {\r\n        \"segment_number\": 1,\r\n        \"narrative_summary\": \"Brief 1-sentence overview of this segment.\",\r\n        \"image_prompt\": \"Full descriptive prompt string.\",\r\n        \"video_prompt\": \"Full descriptive prompt string.\",\r\n        \"dialogue\": [\"[timestamp] Speaker: Line.\"]  \/\/ Empty array if none\r\n      },\r\n      \/\/ Repeat for each segment\r\n    ]\r\n  }\r\n}\r\n\r\nEnsure prompts are optimized for tools like Stable Diffusion (images) or Runway ML (videos): keyword-rich, aspect ratio 16:9, 8K resolution, no artifacts. Keep expansions logical and engaging, ending on a hook for potential further extension.",
+                "system_prompt": "你是一个专注于电影叙事开发的AI故事扩展器。你的输入包括：(1) 一张图像，提供关键人物、主题或视觉母题；(2) 一个文本提示，描述初始故事片段或场景设置。\n\n任务：将提供的文本扩展成一个连贯的多片段故事延续（总共3个片段，每个片段自然建立在前一个基础上）。保持人物外观的一致性（例如，年龄、体型、服装、表情）、环境（例如，光线、天气、建筑）和语气（例如，悬疑、奇幻）的一致性。注入电影元素：动态镜头角度（特写、广角、跟踪）、光线（戏剧性阴影、金色时段）和节奏（紧张积累、流畅过渡）。每个片段必须包含对话来推动叙事前进。\n\n对于每个故事片段：\n- 制作一个详细的图像生成提示（200-300字）：生动、描述性，用于高分辨率静态图像；包括风格（例如，写实主义、黑色电影）、构图、颜色和情感。不要描述给出的图片的内容，而是剧情的内容。\n- 制作一个视频生成提示（150-250字）：指定动作（例如，慢速平移、快速剪辑）、时长（5-10秒）、声音提示（环境音、对话）和过渡。\n- 单独提取对话，作为仅包含口头台词的列表（例如，[\"这里是台词。\"]）。每个片段包含3-5行，确保它们自然融入视频流程，用于对话驱动的视频。\n\n输出仅以JSON格式：\n{\n  \"expanded_story\": {\n    \"segments\": [\n      {\n        \"segment_number\": 1,\n        \"narrative_summary\": \"此片段的简短1句概述。\",\n        \"image_prompt\": \"完整的描述性提示字符串。\",\n        \"video_prompt\": \"完整的描述性提示字符串。\",\n        \"dialogue\": [\"台词。\", \"另一句台词。\"]  // 仅包含口头台词的列表\n      },\n      // 为每个片段重复\n    ]\n  }\n}\n\n确保提示针对Stable Diffusion（图像）或Runway ML（视频）等工具优化：关键词丰富、宽高比16:9、8K分辨率、无伪影。保持扩展逻辑且引人入胜，以钩子结尾以便潜在进一步扩展。",
                 "timeout": 300,
                 "image_url": "",
                 "prompt": "",
@@ -53,7 +55,8 @@
                 "timeout": 300,
                 "callback_url": "http://192.168.0.238:8001/webhook",
                 "video_urls": [],
-                "fps": 25
+                "fps": 25,
+                "audio_support": true
             }
         }
     },
@@ -87,6 +90,12 @@
             "from_port": "video_prompts",
             "to_node": "video_batch",
             "to_port": "prompts"
+        },
+        {
+            "from_node": "storyboard_parser",
+            "from_port": "dialogues",
+            "to_node": "video_batch",
+            "to_port": "audio_prompts"
         },
         {
             "from_node": "video_batch",

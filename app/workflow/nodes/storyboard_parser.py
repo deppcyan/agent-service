@@ -77,7 +77,8 @@ class StoryboardParserNode(WorkflowNode):
         # Extract all required fields from shots
         prompts = [shot["prompt"] for shot in shots]
         video_prompts = [shot["video_prompt"] for shot in shots]
-        dialogues = [shot["dialogues"] for shot in shots]
+        # Combine all dialogues in each shot into a single string
+        dialogues = [" ".join(shot["dialogues"]) if shot["dialogues"] else "" for shot in shots]
         # Duplicate the image_url for each shot
         image_urls = [image_url] * len(shots)
         
@@ -87,6 +88,7 @@ class StoryboardParserNode(WorkflowNode):
         
         logger.info(f"Generated prompts: {json.dumps(prompts, ensure_ascii=False, indent=2)}")
         logger.info(f"Generated video prompts: {json.dumps(video_prompts, ensure_ascii=False, indent=2)}")
+        logger.info(f"Generated dialogues: {json.dumps(dialogues, ensure_ascii=False, indent=2)}")
         logger.debug(f"Full metadata: {json.dumps(metadata, ensure_ascii=False, indent=2)}")
         
         self.output_values = {

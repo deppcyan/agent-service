@@ -12,6 +12,7 @@ class VideoConcatNode(AsyncAPIServiceNode):
         # Input ports
         self.add_input_port("video_urls", "array", True)
         self.add_input_port("fps", "number", False, 25)  # Output video frame rate
+        self.add_input_port("audio_support", "boolean", False, False)  # Whether to support audio in output video
         
         # Output ports
         self.add_output_port("output_url", "string")
@@ -19,8 +20,11 @@ class VideoConcatNode(AsyncAPIServiceNode):
     
     def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare request data for the service"""
+        # Set model based on audio_support flag
+        model = "concat-upscale-audio" if input_data.get("audio_support", False) else "concat-upscale"
+        
         payload = {
-            "model": "concat-upscale",
+            "model": model,
             "input": [{"type": "video", "url": url} for url in input_data["video_urls"]],
             "options": {
                 "fps": input_data.get("fps", 25)
