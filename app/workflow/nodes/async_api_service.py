@@ -48,7 +48,7 @@ class AsyncAPIServiceNode(APIServiceNode):
         try:
             # Prepare request data
             request_data = self._prepare_request(self.input_values)
-            logger.debug(f"{self.service_name}: Prepared request data: {json.dumps(request_data, indent=4)}")
+            logger.debug(f"{self.service_name}: Prepared request data: {json.dumps(request_data, indent=4, ensure_ascii=False)}")
             
             # Make request first to get job id
             response = await self._make_request(request_data)
@@ -57,24 +57,18 @@ class AsyncAPIServiceNode(APIServiceNode):
             if not response.get("id"):
                 raise ValueError("No job id returned from service")
             job_id = response["id"]
-            logger.info(f"{self.service_name}: Got job id: {job_id}")
             
-            # Register callback handler with job id
-            logger.debug(f"{self.service_name}: Registering callback handler for job: {job_id}")
             callback_manager.register_handler(
                 job_id,
                 self._handle_callback
             )
             
-            # Wait for callback
-            logger.info(f"{self.service_name}: Waiting for callback for job: {job_id}")
             callback_data = await callback_manager.wait_for_callback(job_id, timeout)
             
             # Handle callback data
-            logger.debug(f"{self.service_name}: Processing callback data {json.dumps(callback_data, indent=4)}")
+            logger.debug(f"{self.service_name}: Processing callback data {json.dumps(callback_data, indent=4, ensure_ascii=False)}")
             result = await self._handle_callback(callback_data)
             
-            logger.info(f"{self.service_name}: Request completed successfully")
             return result
             
         except Exception as e:

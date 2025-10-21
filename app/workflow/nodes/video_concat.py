@@ -11,7 +11,7 @@ class VideoConcatNode(AsyncAPIServiceNode):
         
         # Input ports
         self.add_input_port("video_urls", "array", True)
-        self.add_input_port("options", "object", False, {})
+        self.add_input_port("fps", "number", False, 25)  # Output video frame rate
         
         # Output ports
         self.add_output_port("output_url", "string")
@@ -22,7 +22,9 @@ class VideoConcatNode(AsyncAPIServiceNode):
         payload = {
             "model": "concat-upscale",
             "input": [{"type": "video", "url": url} for url in input_data["video_urls"]],
-            "options": input_data.get("options", {}),
+            "options": {
+                "fps": input_data.get("fps", 25)
+            },
             "webhookUrl": input_data.get("callback_url")
         }
         

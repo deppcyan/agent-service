@@ -26,7 +26,7 @@ class WorkflowData(BaseModel):
     nodes: Dict
     connections: List[Connection]
 
-WORKFLOW_DIR = "/home/digen/ssd2/workspace/agent-service/app/config/workflows"
+WORKFLOW_DIR = "/home/digen/ssd2/workspace/agent-service/config/workflows"
 
 @app.get("/api/workflows")
 async def list_workflows():

@@ -42,11 +42,6 @@ class WanI2VBatchNode(WorkflowNode):
         duration = self.input_values.get("duration", 5)
         seed = self.input_values.get("seed", None)
         
-        logger.info(f"WanI2VBatch starting with {len(image_urls)} images")
-        logger.info(f"API URL: {self.input_values['api_url']}")
-        logger.debug(f"Image URLs: {json.dumps(image_urls, ensure_ascii=False)}")
-        logger.debug(f"Prompts: {json.dumps(prompts, ensure_ascii=False, indent=2)}")
-        
         # Ensure prompts list matches the length of image_urls
         if len(prompts) < len(image_urls):
             prompts.extend([""] * (len(image_urls) - len(prompts)))
@@ -89,8 +84,6 @@ class WanI2VBatchNode(WorkflowNode):
                 options_list.append({"error": error_msg})
                 status_list.append("failed")
             else:
-                logger.info(f"Task {i} completed successfully")
-                logger.debug(f"Task {i} result: {json.dumps(result, ensure_ascii=False)}")
                 output_urls.append(result["output_url"])
                 options_list.append(result["options"])
                 status_list.append(result["status"])

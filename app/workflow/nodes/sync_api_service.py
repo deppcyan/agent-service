@@ -29,15 +29,14 @@ class SyncAPIServiceNode(APIServiceNode):
         try:
             # Prepare request data
             request_data = self._prepare_request(self.input_values)
+            logger.debug(f"{self.service_name}: Prepared request data: {json.dumps(request_data, indent=4, ensure_ascii=False)}")
             
             # Make request
             response = await self._make_request(request_data)
+            logger.debug(f"{self.service_name}: Received response from service: {json.dumps(response, indent=4, ensure_ascii=False)}")
             
-            # Transform response
-            logger.debug(f"{self.service_name}: Transforming response data: {json.dumps(response, indent=4)}")
             result = await self._transform_response(response)
             
-            logger.info(f"{self.service_name}: Request completed successfully")
             return result
             
         except Exception as e:

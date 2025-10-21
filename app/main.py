@@ -1,4 +1,12 @@
 import os
+import sys
+from pathlib import Path
+
+# 自动将 PYTHONPATH 设置为 app 的上层目录
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent
+sys.path.insert(0, str(project_root))
+
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.responses import FileResponse, JSONResponse
 from datetime import datetime, timezone

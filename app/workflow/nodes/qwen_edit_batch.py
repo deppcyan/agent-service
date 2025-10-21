@@ -32,13 +32,7 @@ class QwenEditBatchNode(WorkflowNode):
         image_urls = self.input_values["image_urls"]
         prompts = self.input_values.get("prompts", [""] * len(image_urls))
         width = self.input_values.get("width", 768)
-        height = self.input_values.get("height", 768)
-        
-        logger.info(f"QwenEditBatch starting with {len(image_urls)} images")
-        logger.info(f"API URL: {self.input_values['api_url']}")
-        logger.debug(f"Image URLs: {json.dumps(image_urls, ensure_ascii=False)}")
-        logger.debug(f"Prompts: {json.dumps(prompts, ensure_ascii=False, indent=2)}")
-        
+        height = self.input_values.get("height", 768)    
         # Ensure prompts list matches the length of image_urls
         if len(prompts) < len(image_urls):
             prompts.extend([""] * (len(image_urls) - len(prompts)))
@@ -75,8 +69,6 @@ class QwenEditBatchNode(WorkflowNode):
                 output_urls.append(None)
                 options_list.append({"error": error_msg})
             else:
-                logger.info(f"Task {i} completed successfully")
-                logger.debug(f"Task {i} result: {json.dumps(result, ensure_ascii=False)}")
                 output_urls.append(result["output_url"])
                 options_list.append(result["options"])
         
