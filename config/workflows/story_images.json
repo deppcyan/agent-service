@@ -1,0 +1,223 @@
+{
+    "nodes": {
+        "image_analysis": {
+            "type": "QwenVLNode",
+            "inputs": {
+                "api_url": "https://50067120bfc96748-8000.us-ca-6.gpu-instance.novita.ai/v1/generate",
+                "system_prompt": "你是一个专业的图像描述AI助手。你的任务是分析用户提供的图片，描述图片中的主要人物（最多1个，如果有多个）。描述时要客观、准确，避免主观判断或偏见。描述只能包括以下关键元素（如果信息明显可见）：\n性别：男性、女性或其他（如果不确定，描述为“中性”）。\n年龄：大致年龄段（如20-30岁、儿童、老人）。\n肤色：如浅色、中等、深色或具体描述（如白皙、黝黑）。\n保持描述简洁，总长度不超过100字",
+                "timeout": 300,
+                "image_url": "",
+                "prompt": "",
+                "seed": 42,
+                "max_tokens": 100
+            }
+        },
+        "llm_prompt_generator": {
+            "type": "TextCombinerNode",
+            "inputs": {
+                "text_a": "",
+                "text_b": "",
+                "prompt": "人物描述：{text_a}，故事描述：{text_b}"
+            }
+        },
+        "image_prompt_generator": {
+            "type": "QwenLLMNode",
+            "inputs": {
+                "api_url": "https://3959d9d12c18545a-8000.us-ca-6.gpu-instance.novita.ai/v1/chat/completions",
+                "timeout": 300,
+                "system_prompt": "你是一个图片提示词专家，根据用户提供的 人物描述 和 故事描述，提供生成图片提示词：基于 人物描述 和 故事描述，创建一个详细的图像生成提示词，描绘主要人物（融入 人物描述 的特征，如性别、年龄、肤色等）与故事初始环境（融入 故事描述 的场景元素，如地点、氛围）。这个提示词需配合一张含有人脸的图片，所以提示词中应该需要告诉模型，利用第一张图片中人脸来生成对应的提示词，提示词要求中文，直接给出提示词，不需要额外解释。",
+                "prompt": "",
+                "seed": 42,
+                "max_tokens": 500
+            }
+        },
+        "prompt_to_list": {
+            "type": "TextToListNode",
+            "inputs": {
+                "text": ""
+            }
+        },
+        "image_to_list": {
+            "type": "TextToListNode",
+            "inputs": {
+                "text": ""
+            }
+        },
+        "edit_batch": {
+            "type": "QwenEditBatchNode",
+            "inputs": {
+                "api_url": "http://192.168.0.238:8000/v1/generate",
+                "timeout": 300,
+                "callback_url": "http://192.168.0.238:8001/webhook",
+                "image_urls": [],
+                "prompts": [],
+                "width": 360,
+                "height": 642
+            }
+        },
+        "list_to_image": {
+            "type": "ListToTextNode",
+            "inputs": {
+                "list": []
+            }
+        },
+        "story_prompt_combine": {
+            "type": "TextCombinerNode",
+            "inputs": {
+                "text_a": "",
+                "text_b": "",
+                "prompt": "人物描述：{text_a}，故事描述：{text_b}"
+            }
+        },
+        "story_generat": {
+            "type": "QwenLLMNode",
+            "inputs": {
+                "api_url": "https://3959d9d12c18545a-8000.us-ca-6.gpu-instance.novita.ai/v1/chat/completions",
+                "timeout": 300,
+                "system_prompt": "你是一个专注于电影叙事开发的AI故事扩展器。你的输入包括：人物描述+故事描述 \n\n任务：将提供的文本扩展成一个连贯的多片段故事延续（总共3个片段，每个片段自然建立在前一个基础上）。保持人物外观的一致性（例如，年龄、体型、服装、表情）、环境（例如，光线、天气、建筑）和语气（例如，悬疑、奇幻）的一致性。注入电影元素：动态镜头角度（特写、广角、跟踪）、光线（戏剧性阴影、金色时段）和节奏（紧张积累、流畅过渡）。每个片段必须包含对话来推动叙事前进。\n\n对于每个故事片段：\n- 制作一个详细的图像生成提示（50-100字）：生动、描述性，用于高分辨率静态图像；包括风格（例如，写实主义、黑色电影）、构图、颜色和情感。人物、风格要跟首帧图片一致。\n- 制作一个视频生成提示（50-100字）：人物动作，镜头动作等。\n- 单独提取对话，作为仅包含口头台词的列表（例如，[\"这里是台词。\"]）。每个片段包含3-5行，确保它们自然融入视频流程，用于对话驱动的视频。\n\n输出仅以JSON格式：\n{\n  \"expanded_story\": {\n    \"segments\": [\n      {\n        \"segment_number\": 1,\n        \"narrative_summary\": \"此片段的简短1句概述。\",\n        \"image_prompt\": \"完整的描述性提示字符串。\",\n        \"video_prompt\": \"完整的描述性提示字符串。\",\n        \"dialogue\": [\"台词。\", \"另一句台词。\"]  // 仅包含口头台词的列表\n      },\n      // 为每个片段重复\n    ]\n  }\n}\n\n",
+                "prompt": "",
+                "seed": 42,
+                "max_tokens": 500
+            }
+        },
+        "story_images": {
+            "type": "QwenEditBatchNode",
+            "inputs": {
+                "api_url": "http://192.168.0.238:8000/v1/generate",
+                "timeout": 300,
+                "callback_url": "http://192.168.0.238:8001/webhook",
+                "image_urls": [],
+                "prompts": [],
+                "width": 360,
+                "height": 642
+            }
+        },
+        "storyboard_parser": {
+            "type": "StoryboardParserNode",
+            "inputs": {
+                "text": "",
+                "image_url": "",
+                "max_segments": 3
+            }
+        },
+        "story_videos": {
+            "type": "WanTalkBatchNode",
+            "inputs": {
+                "api_url": "http://192.168.0.238:8000/v1/generate",
+                "timeout": 300,
+                "callback_url": "http://192.168.0.238:8001/webhook",
+                "image_urls": [],
+                "audio_urls": ["https://watermarked-vidoes.s3.us-west-1.amazonaws.com/zh-Bowen_man.wav"],
+                "prompts": [],
+                "audio_prompts": [],
+                "width": 360,
+                "height": 642,
+                "duration": 5,
+                "output_format": "mp4"
+            }
+        },
+        "video_concat": {
+            "type": "VideoConcatNode",
+            "inputs": {
+                "api_url": "http://192.168.0.238:8000/v1/generate",
+                "timeout": 300,
+                "callback_url": "http://192.168.0.238:8001/webhook",
+                "video_urls": [],
+                "fps": 25,
+                "audio_support": true
+            }
+        }
+    },
+    "connections": [
+        {
+            "from_node": "image_analysis",
+            "from_port": "response",
+            "to_node": "llm_prompt_generator",
+            "to_port": "text_a"
+        },
+        {
+            "from_node": "llm_prompt_generator",
+            "from_port": "combined_text",
+            "to_node": "image_prompt_generator",
+            "to_port": "prompt"
+        },
+        {
+            "from_node": "image_prompt_generator",
+            "from_port": "content",
+            "to_node": "prompt_to_list",
+            "to_port": "text"
+        },
+        {
+            "from_node": "prompt_to_list",
+            "from_port": "list",
+            "to_node": "edit_batch",
+            "to_port": "prompts"
+        },
+        {
+            "from_node": "image_to_list",
+            "from_port": "list",
+            "to_node": "edit_batch",
+            "to_port": "image_urls"
+        },
+        {
+            "from_node": "edit_batch",
+            "from_port": "output_urls",
+            "to_node": "list_to_image",
+            "to_port": "list"
+        },
+        {
+            "from_node": "list_to_image",
+            "from_port": "text",
+            "to_node": "storyboard_parser",
+            "to_port": "image_url"
+        },
+        {
+            "from_node": "image_prompt_generator",
+            "from_port": "content",
+            "to_node": "story_prompt_combine",
+            "to_port": "text_a"
+        },
+        {
+            "from_node": "story_prompt_combine",
+            "from_port": "combined_text",
+            "to_node": "story_generat",
+            "to_port": "prompt"
+        },
+        {
+            "from_node": "story_generat",
+            "from_port": "content",
+            "to_node": "storyboard_parser",
+            "to_port": "text"
+        },
+        {
+            "from_node": "storyboard_parser",
+            "from_port": "image_urls",
+            "to_node": "story_images",
+            "to_port": "image_urls"
+        },
+        {
+            "from_node": "storyboard_parser",
+            "from_port": "prompts",
+            "to_node": "story_images",
+            "to_port": "prompts"
+        },
+        {
+            "from_node": "storyboard_parser",
+            "from_port": "video_prompts",
+            "to_node": "story_videos",
+            "to_port": "prompts"
+        },
+        {
+            "from_node": "story_images",
+            "from_port": "image_urls",
+            "to_node": "story_videos",
+            "to_port": "image_urls"
+        },
+        {
+            "from_node": "story_videos",
+            "from_port": "image_urls",
+            "to_node": "video_concat",
+            "to_port": "image_urls"
+        }
+    ]
+}

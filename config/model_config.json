@@ -84,6 +84,46 @@
                     "output_key": "output_url"
                  }
              }
-         }
+         },
+         "story_images": {
+            "workflow_path": "config/workflows/story_images.json",
+            "required_inputs": ["image"],
+            "timeout_minutes": 1,
+            "default_params": {
+               
+            },
+            "parameter_mapping": {
+                "prompt": {
+                    "node_id": "llm_prompt_generator",
+                    "input_key": "text_b"
+                },
+                "width": {
+                   "node_id": "edit_batch",
+                   "input_key": "width"
+               },
+                "height": {
+                   "node_id": "edit_batch",
+                   "input_key": "height"
+               }
+            },
+            "input_mapping": {
+                "image": [
+                   {
+                       "node_id": "image_to_list",
+                       "input_key": "text"
+                   },
+                   {
+                        "node_id": "image_analysis",
+                        "input_key": "image_url"
+                   }
+               ]
+            },
+            "output_mapping": {
+                "output_url": {
+                   "node_id": "edit_batch",
+                   "output_key": "output_urls"
+                }
+            }
+        }
     }
 }
