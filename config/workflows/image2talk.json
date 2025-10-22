@@ -24,8 +24,8 @@
                 "timeout": 300,
                 "image_url": "",
                 "prompt": "",
-                "seed": 0,
-                "max_tokens": 1014
+                "seed": 42,
+                "max_tokens": 1024
             }
         },
         "storyboard_parser": {

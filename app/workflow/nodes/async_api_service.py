@@ -44,6 +44,7 @@ class AsyncAPIServiceNode(APIServiceNode):
             
         # Get callback URL and timeout
         timeout = self.input_values.get("timeout")
+        logger.info(f"{self.service_name}: Using timeout value: {timeout} seconds")
         
         try:
             # Prepare request data

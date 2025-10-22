@@ -67,26 +67,28 @@ class WanI2VBatchNode(WorkflowNode):
             }
             tasks.append(i2v_node.process())
         
-        # Execute all tasks in parallel
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Execute all tasks in parallel while maintaining order
+        task_list = [asyncio.create_task(task) for task in tasks]
         
-        # Process results and handle any errors
-        output_urls = []
-        options_list = []
-        status_list = []
+        # Pre-allocate result lists to maintain order
+        output_urls = [None] * len(tasks)
+        options_list = [None] * len(tasks)
+        status_list = [None] * len(tasks)
         
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                # Handle error case
-                error_msg = str(result)
+        # Process each task in order of completion
+        for i, task in enumerate(task_list):
+            try:
+                result = await task
+                output_urls[i] = result["output_url"]
+                options_list[i] = result["options"]
+                status_list[i] = result["status"]
+                logger.info(f"Task {i} completed successfully")
+            except Exception as e:
+                error_msg = str(e)
                 logger.error(f"Task {i} failed: {error_msg}")
-                output_urls.append(None)
-                options_list.append({"error": error_msg})
-                status_list.append("failed")
-            else:
-                output_urls.append(result["output_url"])
-                options_list.append(result["options"])
-                status_list.append(result["status"])
+                output_urls[i] = None
+                options_list[i] = {"error": error_msg}
+                status_list[i] = "failed"
         
         logger.info(f"Batch processing completed. {len([url for url in output_urls if url])} successful, "
                    f"{len([url for url in output_urls if not url])} failed")
