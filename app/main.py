@@ -9,9 +9,10 @@ sys.path.insert(0, str(project_root))
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timezone
 import uuid
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from app.utils.logger import logger, pod_id
 from app.utils.utils import verify_api_key, init_service_url, get_service_url
@@ -23,7 +24,7 @@ from app.core.model_config import load_model_configs
 from app.schemas.api import (
     GenerateRequest, JobResponse, JobState, FileInfo,
     HealthResponse, CancelResponse, PurgeResponse,
-    WorkflowRequest
+    WorkflowRequest, NodeInfo, NodePortInfo
 )
 
 from contextlib import asynccontextmanager
@@ -50,6 +51,15 @@ async def lifespan(app: FastAPI):
     pass
 
 app = FastAPI(lifespan=lifespan)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://192.168.0.238:5173"],  # 允许前端开发服务器的源
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许所有HTTP方法
+    allow_headers=["*"],  # 允许所有headers
+)
     
 @app.post("/webhook")
 async def handle_webhook(
@@ -238,6 +248,121 @@ async def ready_check():
     """Check if service is ready to handle requests"""
     # For now, just return true if the service is running
     return {"ready": True}
+
+@app.get("/v1/workflow/nodes")
+async def get_available_nodes():
+    """Get all available node types and their structure"""
+    from app.workflow.registry import node_registry
+    import inspect
+    
+    result = {
+        "nodes": [],
+        "categories": {}
+    }
+    
+    for node_name, node_class in node_registry._nodes.items():
+        # 检查节点类的模块路径
+        module_path = inspect.getmodule(node_class).__name__
+        # 只处理 app/workflow/nodes 和 custom_nodes 目录下的节点
+        if not (module_path.startswith('nodes.') or module_path.startswith('custom_nodes.')):
+            logger.debug(f"Skipping node {node_name} from module {module_path}")
+            continue
+            
+        try:
+            # Try to get port information from class attributes first
+            input_ports = {}
+            output_ports = {}
+            
+            # Try to create a temporary instance with a dummy node_id
+            try:
+                node = node_class("temp_node")
+                input_ports = {
+                    name: NodePortInfo(
+                        name=port.name,
+                        port_type=port.port_type,
+                        required=port.required,
+                        default_value=port.default_value
+                    )
+                    for name, port in node.input_ports.items()
+                }
+                
+                output_ports = {
+                    name: NodePortInfo(
+                        name=port.name,
+                        port_type=port.port_type,
+                        required=True,
+                        default_value=None
+                    )
+                    for name, port in node.output_ports.items()
+                }
+            except (TypeError, ValueError) as e:
+                # If instance creation fails, try to get ports from class attributes
+                logger.debug(f"Failed to create instance of {node_name}: {str(e)}")
+                
+                # Get ports from class attributes if they exist
+                if hasattr(node_class, 'INPUT_PORTS'):
+                    input_ports = {
+                        name: NodePortInfo(
+                            name=name,
+                            port_type=port.get('type', 'any'),
+                            required=port.get('required', True),
+                            default_value=port.get('default', None)
+                        )
+                        for name, port in node_class.INPUT_PORTS.items()
+                    }
+                
+                if hasattr(node_class, 'OUTPUT_PORTS'):
+                    output_ports = {
+                        name: NodePortInfo(
+                            name=name,
+                            port_type=port.get('type', 'any'),
+                            required=True,
+                            default_value=None
+                        )
+                        for name, port in node_class.OUTPUT_PORTS.items()
+                    }
+            
+            # Only add the node if we have port information
+            if input_ports or output_ports:
+                category = node_registry._categories.get(node_name, "default")
+                node_info = {
+                    "name": node_name,
+                    "category": category,
+                    "input_ports": {
+                        name: {
+                            "name": port.name,
+                            "port_type": port.port_type,
+                            "required": port.required,
+                            "default_value": port.default_value
+                        }
+                        for name, port in input_ports.items()
+                    },
+                    "output_ports": {
+                        name: {
+                            "name": port.name,
+                            "port_type": port.port_type,
+                            "required": port.required,
+                            "default_value": port.default_value
+                        }
+                        for name, port in output_ports.items()
+                    }
+                }
+                
+                result["nodes"].append(node_info)
+                
+                # 更新类别信息
+                if category not in result["categories"]:
+                    result["categories"][category] = []
+                result["categories"][category].append(node_name)
+            else:
+                logger.debug(f"Skipping {node_name}: No port information available")
+                
+        except Exception as e:
+            # Log any unexpected errors and continue
+            logger.error(f"Error processing node {node_name}: {str(e)}")
+            continue
+    
+    return result
 
 if __name__ == "__main__":
     import uvicorn

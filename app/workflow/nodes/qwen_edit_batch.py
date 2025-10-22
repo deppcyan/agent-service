@@ -4,7 +4,7 @@ import json
 from app.workflow.base import WorkflowNode
 from app.workflow.nodes.qwen_edit import QwenEditNode
 from app.utils.logger import logger
-from app.workflow.nodes.async_api_service import AsyncAPIServiceNode
+from app.workflow.api_base import AsyncAPIServiceNode
 
 class QwenEditBatchNode(WorkflowNode):
     """Node for batch processing with QwenEdit service"""

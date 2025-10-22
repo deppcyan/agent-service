@@ -83,3 +83,15 @@ class WorkflowRequest(BaseModel):
     workflow: Dict[str, Any] = Field(..., description="Workflow configuration")
     input_data: Dict[str, Any] = Field(..., description="Input data for workflow")
     webhook_url: str = Field(..., description="Webhook URL for workflow completion notification")
+
+class NodePortInfo(BaseModel):
+    name: str = Field(..., description="Port name")
+    port_type: str = Field(..., description="Port data type")
+    required: bool = Field(True, description="Whether the port is required")
+    default_value: Optional[Any] = Field(None, description="Default value for the port")
+
+class NodeInfo(BaseModel):
+    name: str = Field(..., description="Node type name")
+    category: str = Field(..., description="Node category")
+    input_ports: Dict[str, NodePortInfo] = Field(..., description="Input ports configuration")
+    output_ports: Dict[str, NodePortInfo] = Field(..., description="Output ports configuration")

@@ -1,5 +1,5 @@
 from typing import Dict, Any
-from app.workflow.nodes.sync_api_service import SyncAPIServiceNode
+from app.workflow.api_base import SyncAPIServiceNode
 
 
 class QwenLLMNode(SyncAPIServiceNode):

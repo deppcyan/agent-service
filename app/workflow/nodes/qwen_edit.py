@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional
-from app.workflow.nodes.async_api_service import AsyncAPIServiceNode
+from app.workflow.api_base import AsyncAPIServiceNode
 
 class QwenEditNode(AsyncAPIServiceNode):
     """Node for QwenEdit service"""
