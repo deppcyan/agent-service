@@ -1,6 +1,22 @@
 import axios from 'axios';
+import type { NodeTypesResponse } from './nodeTypes';
+import { transformNodeTypesResponse } from './nodeTypes';
 
-const API_BASE_URL = 'http://192.168.0.238:8080/api';
+const API_BASE_URL = 'http://192.168.0.238:8001/v1/workflow';
+
+export interface NodePort {
+  name: string;
+  port_type: string;
+  required: boolean;
+  default_value?: any;
+}
+
+export interface NodeType {
+  name: string;
+  category: string;
+  input_ports: Record<string, NodePort>;
+  output_ports: Record<string, NodePort>;
+}
 
 export interface Connection {
   from_node: string;
@@ -14,19 +30,31 @@ export interface WorkflowData {
   connections: Connection[];
 }
 
+export interface ExecuteWorkflowRequest {
+  workflow: WorkflowData;
+  input_data: Record<string, any>;
+  webhook_url: string;
+}
+
+export interface ExecuteWorkflowResponse {
+  task_id: string;
+  status: string;
+}
+
 export const api = {
-  async listWorkflows() {
-    const response = await axios.get(`${API_BASE_URL}/workflows`);
+
+  async getNodeTypes(): Promise<NodeTypesResponse> {
+    const response = await axios.get(`${API_BASE_URL}/nodes`);
+    return transformNodeTypesResponse(response.data);
+  },
+
+  async executeWorkflow(data: ExecuteWorkflowRequest): Promise<ExecuteWorkflowResponse> {
+    const response = await axios.post(`${API_BASE_URL}/execute`, data);
     return response.data;
   },
 
-  async getWorkflow(filename: string) {
-    const response = await axios.get(`${API_BASE_URL}/workflows/${filename}`);
-    return response.data;
-  },
-
-  async updateWorkflow(filename: string, data: WorkflowData) {
-    const response = await axios.put(`${API_BASE_URL}/workflows/${filename}`, data);
+  async cancelWorkflow(taskId: string): Promise<{ task_id: string; status: string }> {
+    const response = await axios.post(`${API_BASE_URL}/cancel/${taskId}`);
     return response.data;
   },
 };

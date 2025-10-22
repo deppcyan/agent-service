@@ -5,8 +5,50 @@
 @tailwind utilities;
 
 @layer components {
-  .react-flow__node {
-    @apply bg-white rounded-lg shadow-lg border border-gray-200;
+  /* 移除所有 ReactFlow 节点相关的边框和背景 */
+  .react-flow__node,
+  .react-flow__node-default,
+  .react-flow__node-input,
+  .react-flow__node-output,
+  .react-flow__node-default.selectable,
+  .react-flow__node-input.selectable,
+  .react-flow__node-output.selectable,
+  .react-flow__node-group,
+  .react-flow__node.selected,
+  .react-flow__node-default.selected {
+    border: none !important;
+    border-width: 0 !important;
+    border-color: transparent !important;
+    border-style: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    min-width: 400px !important;
+    min-height: 100px !important;
+    padding: 0 !important;
+    outline: none !important;
+  }
+
+  /* 确保选中状态也不会有边框 */
+  .react-flow__node.selected .react-flow__handle,
+  .react-flow__node-default.selected .react-flow__handle {
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* 移除节点内所有元素的边框 */
+  .react-flow__node *:not(.ring-1):not(.ring-2) {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .react-flow__node-default {
+    width: auto !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
   }
 
   .react-flow__handle {
@@ -19,5 +61,35 @@
 
   .react-flow__edge.selected {
     @apply stroke-blue-500;
+  }
+
+  /* 节点调整大小的样式 */
+  .resize-node {
+    resize: both;
+    overflow: auto;
+  }
+
+  .resize-node::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 10px;
+    height: 10px;
+    cursor: se-resize;
+  }
+
+  /* 四个角的拖拽手柄 */
+  .resize-node::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border: 6px solid transparent;
+    border-bottom-right-radius: 3px;
+  }
+
+  .resize-node:hover::before {
+    border-color: rgba(0, 0, 0, 0.1);
   }
 }
