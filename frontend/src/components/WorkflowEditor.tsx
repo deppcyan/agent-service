@@ -33,7 +33,14 @@ interface Connection {
 interface WorkflowEditorProps {}
 
 // 自定义节点组件
-const CustomNode = ({ data, id }: NodeProps) => {
+interface CustomNodeProps extends NodeProps {
+  setSelectedNode?: (node: Node | null) => void;
+  setNodes?: (updater: (nodes: Node[]) => Node[]) => void;
+}
+
+const CustomNode = ({ data, id, setSelectedNode, setNodes }: CustomNodeProps) => {
+  const [showMenu, setShowMenu] = useState(false);
+  
   // 显示所有输入端口
   const ports = useMemo(() => {
     const inputPorts: string[] = [];
@@ -109,9 +116,45 @@ const CustomNode = ({ data, id }: NodeProps) => {
       >
       <div className="font-bold text-sm mb-2 flex items-center justify-between">
         <span>{id}</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
           <span className="text-xs text-gray-500">{data.type}</span>
-          <div className="cursor-move text-gray-400 hover:text-gray-600">⋮⋮</div>
+          <button 
+            className="cursor-pointer text-gray-400 hover:text-gray-600 px-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+          >
+            ⋮
+          </button>
+          {showMenu && (
+            <div 
+              className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg py-1 z-50 min-w-[100px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const node = { id, data, position: { x: 0, y: 0 }, type: 'default' };
+                  setSelectedNode?.(node);
+                  setShowMenu(false);
+                }}
+              >
+                Edit
+              </button>
+              <button
+                className="w-full px-3 py-1.5 text-left text-sm text-red-600 hover:bg-gray-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNodes?.(nodes => nodes.filter(n => n.id !== id));
+                  setShowMenu(false);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
       
@@ -167,10 +210,6 @@ const CustomNode = ({ data, id }: NodeProps) => {
       </div>
     </div>
   );
-};
-
-const nodeTypes = {
-  default: CustomNode,
 };
 
 interface ContextMenu {
@@ -418,6 +457,16 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
       node.id === nodeId ? { ...node, data } : node
     ));
   }, [setNodes]);
+
+  const nodeTypes = useMemo(() => ({
+    default: (props: NodeProps) => (
+      <CustomNode
+        {...props}
+        setSelectedNode={setSelectedNode}
+        setNodes={setNodes}
+      />
+    ),
+  }), [setSelectedNode, setNodes]);
 
   return (
     <div className="h-screen w-full">

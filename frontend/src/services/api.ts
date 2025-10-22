@@ -3,6 +3,10 @@ import type { NodeTypesResponse } from './nodeTypes';
 import { transformNodeTypesResponse } from './nodeTypes';
 
 const API_BASE_URL = 'http://192.168.0.238:8001/v1/workflow';
+const API_KEY = import.meta.env.VITE_DIGEN_API_KEY || (() => {
+  console.warn('VITE_DIGEN_API_KEY environment variable is not set. Please set it in your .env file.');
+  return 'test-key';
+})();
 
 export interface NodePort {
   name: string;
@@ -32,7 +36,6 @@ export interface WorkflowData {
 
 export interface ExecuteWorkflowRequest {
   workflow: WorkflowData;
-  input_data: Record<string, any>;
   webhook_url: string;
 }
 
@@ -44,17 +47,29 @@ export interface ExecuteWorkflowResponse {
 export const api = {
 
   async getNodeTypes(): Promise<NodeTypesResponse> {
-    const response = await axios.get(`${API_BASE_URL}/nodes`);
+    const response = await axios.get(`${API_BASE_URL}/nodes`, {
+      headers: {
+        'api-key': API_KEY
+      }
+    });
     return transformNodeTypesResponse(response.data);
   },
 
   async executeWorkflow(data: ExecuteWorkflowRequest): Promise<ExecuteWorkflowResponse> {
-    const response = await axios.post(`${API_BASE_URL}/execute`, data);
+    const response = await axios.post(`${API_BASE_URL}/execute`, data, {
+      headers: {
+        'api-key': API_KEY
+      }
+    });
     return response.data;
   },
 
   async cancelWorkflow(taskId: string): Promise<{ task_id: string; status: string }> {
-    const response = await axios.post(`${API_BASE_URL}/cancel/${taskId}`);
+    const response = await axios.post(`${API_BASE_URL}/cancel/${taskId}`, null, {
+      headers: {
+        'api-key': API_KEY
+      }
+    });
     return response.data;
   },
 };

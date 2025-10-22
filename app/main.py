@@ -215,7 +215,6 @@ async def execute_workflow(
     try:
         task_id = await workflow_manager.execute_workflow(
             request.workflow,
-            request.input_data,
             request.webhook_url
         )
         

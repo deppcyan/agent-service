@@ -9,7 +9,6 @@ interface ExecuteWorkflowDialogProps {
 
 const ExecuteWorkflowDialog = ({ isOpen, onClose, workflow }: ExecuteWorkflowDialogProps) => {
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [inputData, setInputData] = useState('{}');
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
@@ -19,17 +18,8 @@ const ExecuteWorkflowDialog = ({ isOpen, onClose, workflow }: ExecuteWorkflowDia
       setExecuting(true);
       setError(null);
 
-      let parsedInputData;
-      try {
-        parsedInputData = JSON.parse(inputData);
-      } catch (e) {
-        setError('Invalid JSON in input data');
-        return;
-      }
-
       const response = await api.executeWorkflow({
         workflow,
-        input_data: parsedInputData,
         webhook_url: webhookUrl,
       });
 
@@ -50,7 +40,7 @@ const ExecuteWorkflowDialog = ({ isOpen, onClose, workflow }: ExecuteWorkflowDia
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Webhook URL
+            Webhook URL (Optional)
           </label>
           <input
             type="text"
@@ -59,18 +49,9 @@ const ExecuteWorkflowDialog = ({ isOpen, onClose, workflow }: ExecuteWorkflowDia
             className="w-full px-3 py-2 border rounded-md"
             placeholder="https://..."
           />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Input Data (JSON)
-          </label>
-          <textarea
-            value={inputData}
-            onChange={(e) => setInputData(e.target.value)}
-            className="w-full px-3 py-2 border rounded-md h-32 font-mono text-sm"
-            placeholder="{}"
-          />
+          <p className="mt-1 text-xs text-gray-500">
+            Enter a URL to receive workflow execution status updates
+          </p>
         </div>
 
         {error && (
