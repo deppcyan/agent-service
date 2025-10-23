@@ -81,7 +81,7 @@ class PurgeResponse(BaseModel):
 
 class WorkflowRequest(BaseModel):
     workflow: Dict[str, Any] = Field(..., description="Workflow configuration")
-    webhook_url: str = Field(..., description="Webhook URL for workflow completion notification")
+    webhook_url: Optional[str] = Field(None, description="Optional webhook URL for workflow completion notification")
 
 class NodePortInfo(BaseModel):
     name: str = Field(..., description="Port name")

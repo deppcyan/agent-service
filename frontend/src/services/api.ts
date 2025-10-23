@@ -36,12 +36,17 @@ export interface WorkflowData {
 
 export interface ExecuteWorkflowRequest {
   workflow: WorkflowData;
-  webhook_url: string;
 }
 
 export interface ExecuteWorkflowResponse {
   task_id: string;
   status: string;
+}
+
+export interface WorkflowStatusResponse {
+  status: 'running' | 'completed' | 'error' | 'cancelled' | 'not_found';
+  result: Record<string, any>;
+  error?: string;
 }
 
 export const api = {
@@ -66,6 +71,15 @@ export const api = {
 
   async cancelWorkflow(taskId: string): Promise<{ task_id: string; status: string }> {
     const response = await axios.post(`${API_BASE_URL}/cancel/${taskId}`, null, {
+      headers: {
+        'x-api-key': API_KEY
+      }
+    });
+    return response.data;
+  },
+
+  async getWorkflowStatus(taskId: string): Promise<WorkflowStatusResponse> {
+    const response = await axios.get(`${API_BASE_URL}/status/${taskId}`, {
       headers: {
         'x-api-key': API_KEY
       }

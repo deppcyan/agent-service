@@ -36,6 +36,7 @@ const NodeTypeSelector = ({ onSelect }: NodeTypeSelectorProps) => {
   }, []);
 
   const handleSelect = (nodeType: NodeType) => {
+    console.log('NodeTypeSelector - Selected node type:', nodeType);
     onSelect(nodeType);
     setIsOpen(false);
   };

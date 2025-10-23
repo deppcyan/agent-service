@@ -248,6 +248,27 @@ async def ready_check():
     # For now, just return true if the service is running
     return {"ready": True}
 
+@app.get("/v1/workflow/status/{task_id}")
+async def get_workflow_status(
+    task_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """Get the status and result of a workflow task
+    
+    Args:
+        task_id: The ID of the workflow task to check
+        
+    Returns:
+        Dict containing:
+        - status: "running" | "completed" | "error" | "cancelled" | "not_found"
+        - result: Dictionary of node results
+        - error: Error message (only present if status is "error")
+    """
+    status = workflow_manager.get_task_status(task_id)
+    if status["status"] == "not_found":
+        raise HTTPException(status_code=404, detail="Workflow task not found")
+    return status
+
 @app.get("/v1/workflow/nodes")
 async def get_available_nodes():
     """Get all available node types and their structure"""
