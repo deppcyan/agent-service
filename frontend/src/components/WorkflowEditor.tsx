@@ -36,10 +36,53 @@ interface WorkflowEditorProps {}
 interface CustomNodeProps extends NodeProps {
   setSelectedNode?: (node: Node | null) => void;
   setNodes?: (updater: (nodes: Node[]) => Node[]) => void;
+  updateEdgesAfterNodeIdChange?: (oldId: string, newId: string) => void;
 }
 
-const CustomNode = ({ data, id, setSelectedNode, setNodes }: CustomNodeProps) => {
+const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeIdChange }: CustomNodeProps) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(id);
+  
+  // 处理双击编辑
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditValue(id);
+  };
+
+  // 处理编辑完成
+  const handleEditComplete = () => {
+    if (editValue.trim() && editValue !== id && setNodes) {
+      const newId = editValue.trim();
+      setNodes(nodes => nodes.map(node => {
+        if (node.id === id) {
+          return {
+            ...node,
+            id: newId,
+            data: {
+              ...node.data,
+              label: `${newId} (${node.data.type})`
+            }
+          };
+        }
+        return node;
+      }));
+      // 更新相关连接的节点ID
+      updateEdgesAfterNodeIdChange?.(id, newId);
+    }
+    setIsEditing(false);
+  };
+
+  // 处理按键事件
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleEditComplete();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditValue(id);
+    }
+  };
   
   // 显示所有输入端口
   const ports = useMemo(() => {
@@ -115,7 +158,20 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes }: CustomNodeProps) =>
         }}
       >
       <div className="font-bold text-sm mb-2 flex items-center justify-between">
-        <span>{id}</span>
+        {isEditing ? (
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleEditComplete}
+            onKeyDown={handleKeyDown}
+            className="border border-blue-500 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span onDoubleClick={handleDoubleClick} className="cursor-text">{id}</span>
+        )}
         <div className="flex items-center gap-2 relative">
           <span className="text-xs text-gray-500">{data.type}</span>
           <button 
@@ -353,6 +409,18 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
     [setEdges]
   );
 
+  // 处理节点ID变更后更新相关连接
+  const updateEdgesAfterNodeIdChange = useCallback(
+    (oldId: string, newId: string) => {
+      setEdges(edges => edges.map(edge => ({
+        ...edge,
+        source: edge.source === oldId ? newId : edge.source,
+        target: edge.target === oldId ? newId : edge.target
+      })));
+    },
+    [setEdges]
+  );
+
 
   // Handle node deletion
   const onNodesDelete: OnNodesDelete = useCallback(
@@ -463,6 +531,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
         {...props}
         setSelectedNode={setSelectedNode}
         setNodes={setNodes}
+        updateEdgesAfterNodeIdChange={updateEdgesAfterNodeIdChange}
       />
     ),
   }), [setSelectedNode, setNodes]);
