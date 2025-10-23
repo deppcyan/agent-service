@@ -46,3 +46,26 @@ class ListToTextNode(WorkflowNode):
         return {
             "text": input_list[0]
         }
+
+
+class InputTextNode(WorkflowNode):
+    """Custom node that passes through text input unchanged.
+    This can be used as a starting point or marker in workflows."""
+    
+    category = "text_process"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("text", "string", True)
+        self.add_output_port("text", "string")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        text = self.input_values["text"]
+        
+        # Simply pass through the input text
+        return {
+            "text": text
+        }
