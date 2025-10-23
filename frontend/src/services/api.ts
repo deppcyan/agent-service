@@ -49,7 +49,7 @@ export const api = {
   async getNodeTypes(): Promise<NodeTypesResponse> {
     const response = await axios.get(`${API_BASE_URL}/nodes`, {
       headers: {
-        'api-key': API_KEY
+        'x-api-key': API_KEY
       }
     });
     return transformNodeTypesResponse(response.data);
@@ -58,7 +58,7 @@ export const api = {
   async executeWorkflow(data: ExecuteWorkflowRequest): Promise<ExecuteWorkflowResponse> {
     const response = await axios.post(`${API_BASE_URL}/execute`, data, {
       headers: {
-        'api-key': API_KEY
+        'x-api-key': API_KEY
       }
     });
     return response.data;
@@ -67,7 +67,7 @@ export const api = {
   async cancelWorkflow(taskId: string): Promise<{ task_id: string; status: string }> {
     const response = await axios.post(`${API_BASE_URL}/cancel/${taskId}`, null, {
       headers: {
-        'api-key': API_KEY
+        'x-api-key': API_KEY
       }
     });
     return response.data;

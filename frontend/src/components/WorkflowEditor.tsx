@@ -20,7 +20,7 @@ import type {
 } from 'reactflow';
 import type { WorkflowData, NodeType } from '../services/api';
 import NodeTypeSelector from './NodeTypeSelector';
-import ExecuteWorkflowDialog from './ExecuteWorkflowDialog';
+import ExecuteWorkflowButton from './ExecuteWorkflowDialog';
 import NodePropertiesDialog from './NodePropertiesDialog';
 
 interface Connection {
@@ -222,7 +222,6 @@ interface ContextMenu {
 const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [executeDialogOpen, setExecuteDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
@@ -484,18 +483,10 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
         >
           Export
         </button>
-        <button
-          onClick={() => setExecuteDialogOpen(true)}
-          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-        >
-          Execute
-        </button>
+        <ExecuteWorkflowButton
+          workflow={transformFlowToWorkflow(nodes, edges)}
+        />
       </Panel>
-      <ExecuteWorkflowDialog
-        isOpen={executeDialogOpen}
-        onClose={() => setExecuteDialogOpen(false)}
-        workflow={transformFlowToWorkflow(nodes, edges)}
-      />
       {selectedNode && (
         <NodePropertiesDialog
           isOpen={true}

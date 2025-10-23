@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from app.workflow.base import WorkflowNode
 from app.utils.logger import logger
 from app.core.callback_manager import callback_manager
+import json
 
 class APIServiceNode(WorkflowNode, ABC):
     """Base class for API service nodes"""

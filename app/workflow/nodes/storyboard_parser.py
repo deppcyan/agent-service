@@ -52,7 +52,7 @@ class StoryboardParserNode(WorkflowNode):
                     "description": segment.get("narrative_summary", ""),
                     "prompt": segment.get("image_prompt", ""),
                     "video_prompt": segment.get("video_prompt", ""),
-                    "dialogues": segment.get("dialogue", [])
+                    "dialogue": segment.get("dialogue", "")
                 }
                 shots.append(shot)
             
@@ -78,7 +78,7 @@ class StoryboardParserNode(WorkflowNode):
         prompts = [shot["prompt"] for shot in shots]
         video_prompts = [shot["video_prompt"] for shot in shots]
         # Combine all dialogues in each shot into a single string
-        dialogues = [" ".join(shot["dialogues"]) if shot["dialogues"] else "" for shot in shots]
+        dialogues = [shot["dialogue"] for shot in shots]
         # Duplicate the image_url for each shot
         image_urls = [image_url] * len(shots)
         

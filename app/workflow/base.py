@@ -75,22 +75,28 @@ class WorkflowGraph:
                 to_node: str,
                 to_port: str):
         """Connect two nodes together"""
+        from app.utils.logger import logger
+        
         # Validate nodes exist
-        if from_node not in self.nodes or to_node not in self.nodes:
-            raise ValueError("Both nodes must exist in the graph")
+        if from_node not in self.nodes:
+            raise ValueError(f"Source node '{from_node}' does not exist in the graph")
+        if to_node not in self.nodes:
+            raise ValueError(f"Target node '{to_node}' does not exist in the graph")
             
         # Validate ports exist
         source_node = self.nodes[from_node]
         target_node = self.nodes[to_node]
-        
+                
         if from_port not in source_node.output_ports:
-            raise ValueError(f"Output port {from_port} not found on source node")
+            raise ValueError(f"Output port '{from_port}' not found on source node '{source_node.__class__.__name__}[{from_node}]'")
         if to_port not in target_node.input_ports:
-            raise ValueError(f"Input port {to_port} not found on target node")
+            raise ValueError(f"Input port '{to_port}' not found on target node '{target_node.__class__.__name__}[{to_node}]'")
             
         # Validate port types match
-        if source_node.output_ports[from_port].port_type != target_node.input_ports[to_port].port_type:
-            raise ValueError("Port types must match")
+        source_type = source_node.output_ports[from_port].port_type
+        target_type = target_node.input_ports[to_port].port_type
+        if source_type != target_type:
+            raise ValueError(f"Port types must match: {source_node.__class__.__name__}[{from_node}].{from_port}({source_type}) -> {target_node.__class__.__name__}[{to_node}].{to_port}({target_type})")
             
         # Add connection
         connection = NodeConnection(from_node, from_port, to_node, to_port)
