@@ -17,6 +17,8 @@ class WorkflowManager:
         self.workflows: Dict[str, WorkflowConfig] = {}
         # Store active workflow tasks
         self.active_tasks: Dict[str, Tuple[asyncio.Task, WorkflowExecutor]] = {}
+        # Store completed tasks with their results
+        self.completed_tasks: Dict[str, Dict[str, Any]] = {}
         # Load built-in nodes
         node_registry.load_builtin_nodes()
 
@@ -64,6 +66,37 @@ class WorkflowManager:
         except Exception as e:
             logger.error(f"Error starting workflow execution: {str(e)}")
             raise
+
+    def get_task_status(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Get the status and result of a task
+        
+        Args:
+            task_id: The ID of the task to check
+            
+        Returns:
+            Optional[Dict[str, Any]]: Task status and result if found, None if task not found
+            The returned dictionary contains:
+            - status: "running" | "completed" | "error" | "cancelled" | "not_found"
+            - result: Dictionary of node results (available in all states)
+            - error: Error message (only present if status is "error")
+        """
+        # First check active tasks
+        if task_id in self.active_tasks:
+            _, executor = self.active_tasks[task_id]
+            return {
+                "status": "running",
+                "result": executor.node_results  # 使用统一的 result 字段
+            }
+            
+        # Then check completed tasks
+        if task_id in self.completed_tasks:
+            return self.completed_tasks[task_id]
+            
+        # Return not found status instead of None
+        return {
+            "status": "not_found",
+            "result": {}
+        }
 
     async def cancel_workflow(self, task_id: str) -> bool:
         """Cancel a running workflow
@@ -125,8 +158,27 @@ class WorkflowManager:
                     })
                     
         finally:
-            # Clean up task
+            # Store task result and clean up active task
             if task_id in self.active_tasks:
+                # Only store in completed_tasks if webhook_url is None
+                if webhook_url is None:
+                    if 'result' in locals():
+                        self.completed_tasks[task_id] = {
+                            "status": "completed",
+                            "result": result  # 使用统一的 result 字段
+                        }
+                    elif 'e' in locals():  # Error case
+                        self.completed_tasks[task_id] = {
+                            "status": "error",
+                            "result": {},  # 空结果
+                            "error": str(e)
+                        }
+                    else:  # Cancelled case
+                        self.completed_tasks[task_id] = {
+                            "status": "cancelled",
+                            "result": {}  # 空结果
+                        }
+                # Remove from active tasks
                 del self.active_tasks[task_id]
 
 # Create global workflow manager instance
