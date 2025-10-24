@@ -1,3 +1,4 @@
+from calendar import TUESDAY
 import json
 import uuid
 import asyncio
@@ -98,6 +99,29 @@ class WorkflowManager:
             "result": {}
         }
 
+    def _update_task_status(self, task_id: str, status: str, result: Dict[str, Any] = None, error: str = None, store_result: bool = True) -> None:
+        """Update task status and manage task storage
+        
+        Args:
+            task_id: The ID of the task to update
+            status: New status ("completed", "error", "cancelled")
+            result: Optional result data
+            error: Optional error message
+            store_result: If True, store result in completed_tasks (default: True)
+        """
+        # Remove from active tasks if present
+        if task_id in self.active_tasks:
+            del self.active_tasks[task_id]
+            
+        # Store in completed tasks only if store_result is True
+        if store_result:
+            self.completed_tasks[task_id] = {
+                "status": status,
+                "result": result or {},
+            }
+            if error:
+                self.completed_tasks[task_id]["error"] = error
+
     async def cancel_workflow(self, task_id: str) -> bool:
         """Cancel a running workflow
         
@@ -118,7 +142,6 @@ class WorkflowManager:
         except asyncio.CancelledError:
             pass
             
-        del self.active_tasks[task_id]
         return True
 
     async def _execute_and_callback(self, task_id: str, executor: WorkflowExecutor, webhook_url: Optional[str] = None) -> None:
@@ -127,7 +150,7 @@ class WorkflowManager:
             # Execute workflow
             result = await executor.execute()
             
-            # Call webhook if provided
+            # Update status and call webhook if provided
             if webhook_url:
                 async with aiohttp.ClientSession() as session:
                     await session.post(webhook_url, json={
@@ -135,6 +158,9 @@ class WorkflowManager:
                         "status": "completed",
                         "result": result
                     })
+                self._update_task_status(task_id, "completed", result, store_result=False)
+            else:
+                self._update_task_status(task_id, "completed", result, store_result=True)
                     
         except asyncio.CancelledError:
             # Handle cancellation
@@ -144,42 +170,26 @@ class WorkflowManager:
                         "task_id": task_id,
                         "status": "cancelled"
                     })
+                self._update_task_status(task_id, "cancelled", store_result=False)
+            else:
+                self._update_task_status(task_id, "cancelled", store_result=True)
             raise
             
         except Exception as e:
             # Handle execution error
-            logger.error(f"Error executing workflow {task_id}: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"Error executing workflow {task_id}: {error_msg}")
+            
             if webhook_url:
                 async with aiohttp.ClientSession() as session:
                     await session.post(webhook_url, json={
                         "task_id": task_id,
                         "status": "error",
-                        "error": str(e)
+                        "error": error_msg
                     })
-                    
-        finally:
-            # Store task result and clean up active task
-            if task_id in self.active_tasks:
-                # Only store in completed_tasks if webhook_url is None
-                if webhook_url is None:
-                    if 'result' in locals():
-                        self.completed_tasks[task_id] = {
-                            "status": "completed",
-                            "result": result  # 使用统一的 result 字段
-                        }
-                    elif 'e' in locals():  # Error case
-                        self.completed_tasks[task_id] = {
-                            "status": "error",
-                            "result": {},  # 空结果
-                            "error": str(e)
-                        }
-                    else:  # Cancelled case
-                        self.completed_tasks[task_id] = {
-                            "status": "cancelled",
-                            "result": {}  # 空结果
-                        }
-                # Remove from active tasks
-                del self.active_tasks[task_id]
+                self._update_task_status(task_id, "error", error=error_msg, store_result=False)
+            else:
+                self._update_task_status(task_id, "error", error=error_msg, store_result=True)
 
 # Create global workflow manager instance
 workflow_manager = WorkflowManager()
