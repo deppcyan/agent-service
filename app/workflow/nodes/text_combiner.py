@@ -5,6 +5,8 @@ from app.workflow.base import WorkflowNode
 class TextCombinerNode(WorkflowNode):
     """Node for combining text using a template prompt with variables"""
     
+    category = "text_process"
+    
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
         
