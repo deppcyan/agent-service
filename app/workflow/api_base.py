@@ -7,16 +7,14 @@ from app.utils.logger import logger
 from app.core.callback_manager import callback_manager
 import json
 
-class APIServiceNode(WorkflowNode, ABC):
-    """Base class for API service nodes"""
+class BaseDigenAPINode(WorkflowNode, ABC):
+    """Base class for Digen API service nodes"""
     
-    category = "api_services"
-    service_name: str = None  # Should be set by child classes
+    category = "digen_services"
     
-    def __init__(self, node_id: str = None):
+    def __init__(self, service_name: str, node_id: str = None):
         super().__init__(node_id)
-        if not self.service_name:
-            raise ValueError("service_name must be set by child classes")
+        self.service_name = service_name
             
         # Get API key from environment variable
         self.api_key = os.getenv("DIGEN_API_KEY")
@@ -48,19 +46,14 @@ class APIServiceNode(WorkflowNode, ABC):
                     raise Exception(f"Service call failed with status {response.status}: {error_text}")
                     
                 response_data = await response.json()
-                logger.info(f"{self.service_name}:  Received response from service")
+                logger.info(f"{self.service_name}: Received response from service")
                 return response_data
-                
-    @abstractmethod
-    async def process(self) -> Dict[str, Any]:
-        """Process the node's inputs and return outputs. Must be implemented by child classes."""
-        pass
 
-class AsyncAPIServiceNode(APIServiceNode):
-    """Asynchronous API service node that waits for callback"""
+class AsyncDigenAPINode(BaseDigenAPINode):
+    """Asynchronous Digen API service node that waits for callback"""
     
-    def __init__(self, node_id: str = None):
-        super().__init__(node_id)
+    def __init__(self, service_name: str, node_id: str = None):
+        super().__init__(service_name, node_id)
         # Add callback-related input ports
         self.add_input_port("callback_url", "string", True)
         self.add_input_port("timeout", "number", False)
@@ -131,11 +124,11 @@ class AsyncAPIServiceNode(APIServiceNode):
                 callback_manager.unregister_handler(job_id)
             raise
 
-class SyncAPIServiceNode(APIServiceNode):
-    """Synchronous API service node that processes response immediately"""
+class SyncDigenAPINode(BaseDigenAPINode):
+    """Synchronous Digen API service node that processes response immediately"""
     
-    def __init__(self, node_id: str = None):
-        super().__init__(node_id)
+    def __init__(self, service_name: str, node_id: str = None):
+        super().__init__(service_name, node_id)
         
     async def _transform_response(self, response_data: Dict[str, Any]) -> Dict[str, Any]:
         """Transform the API response into the desired output format.
