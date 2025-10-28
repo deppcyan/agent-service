@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional, TypeVar, Generic
+from typing import Dict, Any, List, Optional, TypeVar, Generic, Union
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from app.workflow.base import WorkflowNode
@@ -16,15 +16,17 @@ class IterationResult(Generic[T, R]):
     error: Optional[str] = None
 
 class IterativeNode(WorkflowNode, ABC):
-    """用于处理列表输入的基础节点类
+    """循环处理节点
     
-    这个类提供了处理列表输入的基础功能，包括：
+    用于对列表中的每个项目进行处理。支持：
     - 并行/顺序处理
     - 错误处理和恢复
     - 结果统计
     
     子类只需要实现 process_item 方法来处理单个项目即可。
     """
+    
+    category = "control"
     
     def __init__(self, node_id: Optional[str] = None):
         super().__init__(node_id)
@@ -55,14 +57,7 @@ class IterativeNode(WorkflowNode, ABC):
         raise NotImplementedError("Subclasses must implement process_item")
     
     async def _safe_process_item(self, item: Any) -> IterationResult:
-        """安全地处理单个项目，包含错误处理
-        
-        Args:
-            item: 要处理的项目
-            
-        Returns:
-            处理结果
-        """
+        """安全地处理单个项目，包含错误处理"""
         try:
             output = await self.process_item(item)
             return IterationResult(
@@ -80,15 +75,7 @@ class IterativeNode(WorkflowNode, ABC):
             )
     
     async def process(self) -> Dict[str, Any]:
-        """处理整个列表
-        
-        Returns:
-            Dict 包含以下字段:
-            - results: 成功处理的结果列表
-            - success_count: 成功处理的数量
-            - error_count: 失败的数量
-            - errors: 错误详情列表
-        """
+        """处理整个列表"""
         if not self.validate_inputs():
             raise ValueError("Required inputs missing")
         

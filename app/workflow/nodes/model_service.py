@@ -1,5 +1,5 @@
 from typing import Dict, Any, List
-from app.workflow.api_base import AsyncDigenAPINode
+from app.workflow.node_api import AsyncDigenAPINode
 from app.utils.logger import logger
 
 class ModelServiceNode(AsyncDigenAPINode):

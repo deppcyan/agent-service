@@ -1,5 +1,5 @@
 from typing import Dict, Any, Optional
-from app.workflow.nodes.iterative import IterativeNode
+from app.workflow.node_control import IterativeNode
 from app.workflow.nodes.model_service import ModelServiceNode
 from app.workflow.nodes.model_request import ModelRequestNode
 from app.utils.logger import logger
