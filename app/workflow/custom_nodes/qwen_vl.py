@@ -4,10 +4,8 @@ from app.workflow.node_api import SyncDigenAPINode
 class QwenVLNode(SyncDigenAPINode):
     """Node for QwenVL service"""
     
-    service_name = "qwen-vl"
-    
     def __init__(self, node_id: str = None):
-        super().__init__(node_id)
+        super().__init__("qwen-vl", node_id)
         
         # Input ports
         self.add_input_port("image_url", "string", False, "")  # Made optional

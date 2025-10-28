@@ -437,7 +437,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   // Handle adding new nodes
   const onNodeTypeSelect = useCallback((nodeType: NodeType) => {
     const newNode: Node = {
-      id: `${nodeType.name}_${Date.now()}`,
+      id: `${Date.now()}`,
       type: 'default',
       position: { x: 100, y: 100 },
       data: {

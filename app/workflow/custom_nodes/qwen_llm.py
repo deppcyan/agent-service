@@ -5,10 +5,8 @@ from app.workflow.node_api import SyncDigenAPINode
 class QwenLLMNode(SyncDigenAPINode):
     """Node for Qwen LLM service"""
     
-    service_name = "qwen-llm"
-    
     def __init__(self, node_id: str = None):
-        super().__init__(node_id)
+        super().__init__("qwen-llm", node_id)
         
         # Input ports
         self.add_input_port("system_prompt", "string", False, "You are a helpful assistant.")
