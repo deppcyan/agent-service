@@ -91,31 +91,51 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
     const inputPorts: string[] = [];
     const outputPorts: string[] = [];
 
-    // 从节点的 inputs 中获取所有可能的输入端口
+      // 从节点类型定义中获取输入输出端口
+    api.getNodeTypes().then(nodeTypes => {
+      const nodeType = nodeTypes.nodes.find(t => t.name === data.type);
+      if (nodeType) {
+        // 从节点类型定义中获取输入端口
+        Object.keys(nodeType.input_ports).forEach(key => {
+          if (!inputPorts.includes(key)) {
+            inputPorts.push(key);
+          }
+        });
+        
+        // 从节点类型定义中获取输出端口
+        Object.keys(nodeType.output_ports).forEach(key => {
+          if (!outputPorts.includes(key)) {
+            outputPorts.push(key);
+          }
+        });
+      }
+    }).catch(error => {
+      console.error('Failed to get node types:', error);
+    });
+
+    // 从现有的输入中添加端口
     if (data.inputs && typeof data.inputs === 'object') {
       Object.keys(data.inputs).forEach(key => {
-        inputPorts.push(key);
+        if (!inputPorts.includes(key)) {
+          inputPorts.push(key);
+        }
       });
     }
 
-    // 从节点的 outputs 中获取所有可能的输出端口
-    if (data.outputs && typeof data.outputs === 'object') {
-      Object.keys(data.outputs).forEach(key => {
-        outputPorts.push(key);
-      });
-    }
-
-    // 如果没有明确的 outputs，则从连接中推断输出端口
+    // 从连接中推断端口
     if (data.connections) {
       data.connections.forEach((conn: Connection) => {
-        if (conn.from_port && !outputPorts.includes(conn.from_port)) {
+        if (conn.to_node === id && conn.to_port && !inputPorts.includes(conn.to_port)) {
+          inputPorts.push(conn.to_port);
+        }
+        if (conn.from_node === id && conn.from_port && !outputPorts.includes(conn.from_port)) {
           outputPorts.push(conn.from_port);
         }
       });
     }
 
     return { inputPorts, outputPorts };
-  }, [data.inputs, data.outputs, data.connections]);
+  }, [data.type, data.inputs, data.outputs, data.connections]);
 
   // 格式化值的显示
   const formatValue = (value: any): string => {
@@ -220,49 +240,61 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
         {/* 输入端口 */}
         <div className="border-r border-gray-700 pr-3">
           <div className="text-xs font-semibold text-indigo-400 mb-2">Inputs</div>
-          {ports.inputPorts.map((port) => (
-            <div key={`${id}-input-${port}`} className="relative mb-2 last:mb-0">
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={port}
-                className="w-2 h-2 !bg-blue-500"
-                style={{ top: '10px' }}
-              />
-              <div className="ml-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-300">{port}:</span>
-                  <span 
-                    className="text-xs text-gray-400 truncate max-w-[120px]" 
-                    title={JSON.stringify(data.inputs[port], null, 2)}
-                  >
-                    {formatValue(data.inputs[port])}
-                  </span>
+          {ports.inputPorts.map((port) => {
+            // 只显示在 inputs 中的端口
+            const isConnected = data.connections?.some((conn: Connection) => 
+              conn.to_node === id && conn.to_port === port
+            );
+            return (
+              <div key={`${id}-input-${port}`} className="relative mb-2 last:mb-0">
+                <Handle
+                  type="target"
+                  position={Position.Left}
+                  id={port}
+                  className={`w-2 h-2 ${isConnected ? '!bg-green-500' : '!bg-blue-500'}`}
+                  style={{ top: '10px' }}
+                />
+                <div className="ml-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-300">{port}:</span>
+                    <span 
+                      className="text-xs text-gray-400 truncate max-w-[120px]" 
+                      title={JSON.stringify(data.inputs?.[port], null, 2)}
+                    >
+                      {formatValue(data.inputs?.[port])}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* 输出端口 */}
         <div className="pl-3">
           <div className="text-xs font-semibold text-indigo-400 mb-2">Outputs</div>
-          {ports.outputPorts.map((port) => (
-            <div key={`${id}-output-${port}`} className="relative mb-2 last:mb-0">
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={port}
-                className="w-2 h-2 !bg-green-500"
-                style={{ top: '10px' }}
-              />
-              <div className="mr-3">
-                <div className="flex items-center justify-end">
-                  <span className="text-xs font-medium text-gray-300">{port}</span>
+          {ports.outputPorts.map((port) => {
+            // 只显示在 outputs 中的端口
+            const isConnected = data.connections?.some((conn: Connection) => 
+              conn.from_node === id && conn.from_port === port
+            );
+            return (
+              <div key={`${id}-output-${port}`} className="relative mb-2 last:mb-0">
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={port}
+                  className={`w-2 h-2 ${isConnected ? '!bg-green-500' : '!bg-blue-500'}`}
+                  style={{ top: '10px' }}
+                />
+                <div className="mr-3">
+                  <div className="flex items-center justify-end">
+                    <span className="text-xs font-medium text-gray-300">{port}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
       </div>
@@ -287,12 +319,43 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
 
   // 将workflow数据转换为ReactFlow格式
-  const transformWorkflowToFlow = (data: WorkflowData) => {
+  const transformWorkflowToFlow = async (data: WorkflowData) => {
     const flowNodes: Node[] = [];
     const flowEdges: Edge[] = [];
 
+    // 获取所有节点类型定义
+    const nodeTypesResponse = await api.getNodeTypes();
+    const nodeTypeDefinitions = nodeTypesResponse.nodes.reduce((acc: Record<string, NodeType>, type: NodeType) => {
+      acc[type.name] = type;
+      return acc;
+    }, {});
+
     // 创建节点
     Object.entries(data.nodes).forEach(([id, node], index) => {
+      const nodeType = nodeTypeDefinitions[node.type];
+      const inputPorts = nodeType ? Object.keys(nodeType.input_ports) : [];
+      const outputPorts = nodeType ? Object.keys(nodeType.output_ports) : [];
+      
+      // 根据端口定义分离输入和输出
+      const inputs: Record<string, any> = {};
+      const outputs: Record<string, any> = {};
+      
+      // 处理已有的输入
+      if (node.inputs) {
+        Object.entries(node.inputs).forEach(([key, value]) => {
+          if (inputPorts.includes(key)) {
+            inputs[key] = value;
+          }
+        });
+      }
+      
+      // 从连接中推断输出端口
+      data.connections.forEach(conn => {
+        if (conn.from_node === id && outputPorts.includes(conn.from_port)) {
+          outputs[conn.from_port] = null;
+        }
+      });
+
       flowNodes.push({
         id,
         type: 'default',
@@ -300,8 +363,8 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
         data: { 
           label: `${id} (${node.type})`,
           type: node.type,
-          inputs: node.inputs,
-          outputs: {},  // 初始化为空对象
+          inputs,
+          outputs,
           connections: data.connections.filter(conn => conn.from_node === id || conn.to_node === id),
         },
       });
@@ -366,10 +429,10 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
           try {
             const data = JSON.parse(e.target?.result as string);
-            const flowData = transformWorkflowToFlow(data);
+            const flowData = await transformWorkflowToFlow(data);
             setNodes(flowData.nodes);
             setEdges(flowData.edges);
           } catch (error) {
@@ -429,7 +492,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   const loadWorkflow = useCallback(async (name: string) => {
     try {
       const data = await api.getWorkflow(name);
-      const flowData = transformWorkflowToFlow(data);
+      const flowData = await transformWorkflowToFlow(data);
       setNodes(flowData.nodes);
       setEdges(flowData.edges);
       setCurrentWorkflowName(name);

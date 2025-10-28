@@ -67,19 +67,23 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
     }
   };
 
-  // Extract media URLs from results
-  // Extract media URLs from results, including URLs in arrays
+  // Extract only local_urls from results
   const extractUrls = (obj: any): string[] => {
     if (!obj) return [];
-    if (typeof obj === 'string' && (obj.startsWith('http') || obj.startsWith('/files/'))) {
-      return [obj];
-    }
+    
     if (Array.isArray(obj)) {
       return obj.flatMap(item => extractUrls(item));
     }
+    
     if (typeof obj === 'object') {
+      // Only extract URLs from local_urls field
+      if (obj.hasOwnProperty('local_urls')) {
+        return Array.isArray(obj.local_urls) ? obj.local_urls : [];
+      }
+      // Continue searching in nested objects
       return Object.values(obj).flatMap(value => extractUrls(value));
     }
+    
     return [];
   };
 
