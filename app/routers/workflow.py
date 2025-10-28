@@ -1,0 +1,226 @@
+from fastapi import APIRouter, HTTPException, Depends, Request
+from typing import Dict, Any, List
+
+from app.utils.logger import logger
+from app.utils.utils import verify_api_key
+from app.core.workflow_manager import workflow_manager
+from app.core.job_manager import job_manager
+from app.schemas.api import WorkflowRequest, NodeInfo, NodePortInfo
+
+router = APIRouter(prefix="/v1/workflow", tags=["workflow"])
+
+@router.post("/execute")
+async def execute_workflow(
+    request: WorkflowRequest,
+    api_key: str = Depends(verify_api_key)
+):
+    """Execute a workflow directly with provided configuration"""
+    try:
+        task_id = await workflow_manager.execute_workflow(
+            request.workflow,
+            request.webhook_url
+        )
+        
+        return {
+            "task_id": task_id,
+            "status": "accepted"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error executing workflow: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/webhook/{job_id}")
+async def handle_workflow_webhook(
+    job_id: str,
+    request: Request
+):
+    """
+    Webhook handler for workflow callbacks
+    
+    Args:
+        job_id: ID of the job associated with this workflow
+        request: webhook request containing workflow execution results
+    """
+    try:
+        # Get request data
+        data = await request.json()
+        
+        # Get task ID and status
+        task_id = data.get("task_id")
+        if not task_id:
+            raise HTTPException(status_code=400, detail="Missing task_id in webhook data")
+            
+        status = data.get("status")
+        result = data.get("result")
+        error = data.get("error")
+        
+        # Update job state
+        await job_manager._handle_workflow_callback(job_id, status, result, error)
+                
+        return {"status": "success"}
+        
+    except ValueError as e:
+        logger.error(
+            f"Invalid workflow webhook data: {str(e)}",
+            extra={"task_id": data.get("task_id", "unknown")}
+        )
+        raise HTTPException(status_code=400, detail=str(e))
+        
+    except Exception as e:
+        logger.error(
+            f"Error processing workflow webhook: {str(e)}",
+            extra={"task_id": data.get("task_id", "unknown")}
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/cancel/{task_id}")
+async def cancel_workflow(
+    task_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """Cancel a running workflow"""
+    cancelled = await workflow_manager.cancel_workflow(task_id)
+    if not cancelled:
+        raise HTTPException(status_code=404, detail="Workflow task not found")
+        
+    return {
+        "task_id": task_id,
+        "status": "cancelled"
+    }
+
+@router.get("/status/{task_id}")
+async def get_workflow_status(
+    task_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """Get the status and result of a workflow task
+    
+    Args:
+        task_id: The ID of the workflow task to check
+        
+    Returns:
+        Dict containing:
+        - status: "running" | "completed" | "error" | "cancelled" | "not_found"
+        - result: Dictionary of node results
+        - error: Error message (only present if status is "error")
+    """
+    status = workflow_manager.get_task_status(task_id)
+    if status["status"] == "not_found":
+        raise HTTPException(status_code=404, detail="Workflow task not found")
+    return status
+
+@router.get("/nodes")
+async def get_available_nodes():
+    """Get all available node types and their structure"""
+    from app.workflow.registry import node_registry
+    import inspect
+    
+    result = {
+        "nodes": [],
+        "categories": {}
+    }
+    
+    for node_name, node_class in node_registry._nodes.items():
+        # 检查节点类的模块路径
+        module_path = inspect.getmodule(node_class).__name__
+        # 只处理 app/workflow/nodes 和 custom_nodes 目录下的节点
+        if not (module_path.startswith('nodes.') or module_path.startswith('custom_nodes.')):
+            logger.debug(f"Skipping node {node_name} from module {module_path}")
+            continue
+            
+        try:
+            # Try to get port information from class attributes first
+            input_ports = {}
+            output_ports = {}
+            
+            # Try to create a temporary instance with a dummy node_id
+            try:
+                node = node_class("temp_node")
+                input_ports = {
+                    name: NodePortInfo(
+                        name=port.name,
+                        port_type=port.port_type,
+                        required=port.required,
+                        default_value=port.default_value
+                    )
+                    for name, port in node.input_ports.items()
+                }
+                
+                output_ports = {
+                    name: NodePortInfo(
+                        name=port.name,
+                        port_type=port.port_type,
+                        required=True,
+                        default_value=None
+                    )
+                    for name, port in node.output_ports.items()
+                }
+            except (TypeError, ValueError) as e:
+                # If instance creation fails, try to get ports from class attributes
+                logger.debug(f"Failed to create instance of {node_name}: {str(e)}")
+                
+                # Get ports from class attributes if they exist
+                if hasattr(node_class, 'INPUT_PORTS'):
+                    input_ports = {
+                        name: NodePortInfo(
+                            name=name,
+                            port_type=port.get('type', 'any'),
+                            required=port.get('required', True),
+                            default_value=port.get('default', None)
+                        )
+                        for name, port in node_class.INPUT_PORTS.items()
+                    }
+                
+                if hasattr(node_class, 'OUTPUT_PORTS'):
+                    output_ports = {
+                        name: NodePortInfo(
+                            name=name,
+                            port_type=port.get('type', 'any'),
+                            required=True,
+                            default_value=None
+                        )
+                        for name, port in node_class.OUTPUT_PORTS.items()
+                    }
+            
+            # Only add the node if we have port information
+            if input_ports or output_ports:
+                category = node_registry._categories.get(node_name, "default")
+                node_info = {
+                    "name": node_name,
+                    "category": category,
+                    "input_ports": {
+                        name: {
+                            "name": port.name,
+                            "port_type": port.port_type,
+                            "required": port.required,
+                            "default_value": port.default_value
+                        }
+                        for name, port in input_ports.items()
+                    },
+                    "output_ports": {
+                        name: {
+                            "name": port.name,
+                            "port_type": port.port_type,
+                            "required": port.required,
+                            "default_value": port.default_value
+                        }
+                        for name, port in output_ports.items()
+                    }
+                }
+                
+                result["nodes"].append(node_info)
+                
+                # 更新类别信息
+                if category not in result["categories"]:
+                    result["categories"][category] = []
+                result["categories"][category].append(node_name)
+            else:
+                logger.debug(f"Skipping {node_name}: No port information available")
+                
+        except Exception as e:
+            # Log any unexpected errors and continue
+            logger.error(f"Error processing node {node_name}: {str(e)}")
+            continue
+    
+    return result
