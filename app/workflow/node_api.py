@@ -2,6 +2,7 @@ import os
 from typing import Dict, Any, Optional
 import aiohttp
 from abc import ABC, abstractmethod
+from asyncio import CancelledError
 from app.workflow.base import WorkflowNode
 from app.utils.logger import logger
 from app.core.callback_manager import callback_manager
@@ -28,18 +29,20 @@ class BaseDigenAPINode(WorkflowNode, ABC):
         """Prepare request data for the service. Must be implemented by child classes."""
         raise NotImplementedError("_prepare_request must be implemented by child classes")
         
-    async def _make_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def _make_request(self, data: Dict[str, Any], method: str = "POST", url: Optional[str] = None) -> Dict[str, Any]:
         """Make HTTP request to service"""
         headers = {
             "X-API-Key": self.api_key,
             "Content-Type": "application/json"
         }
         
-        url = f"{self.input_values['api_url']}"
+        if url is None:
+            url = self.input_values['api_url']
         
         async with aiohttp.ClientSession() as session:
-            logger.info(f"{self.service_name}: Making POST request to {url}")
-            async with session.post(url, headers=headers, json=data) as response:
+            logger.info(f"{self.service_name}: Making {method} request to {url}")
+            request_method = getattr(session, method.lower())
+            async with request_method(url, headers=headers, json=data if method == "POST" else None) as response:
                 if response.status != 200:
                     error_text = await response.text()
                     logger.error(f"{self.service_name}: Service request failed: {error_text}")
@@ -56,6 +59,7 @@ class AsyncDigenAPINode(BaseDigenAPINode):
         super().__init__(service_name, node_id)
         # Add callback-related input ports
         self.add_input_port("callback_url", "string", True)
+        self.add_input_port("cancel_url", "string", False)  # Optional, will use default if not provided
         self.add_input_port("timeout", "number", False)
          
     def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -81,6 +85,22 @@ class AsyncDigenAPINode(BaseDigenAPINode):
             Processed callback data in the desired output format
         """
         raise NotImplementedError("_handle_callback must be implemented by child classes")
+        
+    async def _cancel_job(self, job_id: str) -> None:
+        """Cancel a running job by making a request to the cancel URL"""
+        # Get cancel URL, use default if not provided
+        base_url = self.input_values['api_url']
+            
+        cancel_url = self.input_values.get("cancel_url", f"{base_url}/{job_id}")
+        
+        try:
+            await self._make_request({"job_id": job_id}, method="POST", url=cancel_url)
+            logger.info(f"{self.service_name}: Successfully cancelled job {job_id}")
+        except Exception as e:
+            logger.error(f"{self.service_name}: Failed to cancel job {job_id}: {str(e)}")
+            # We still want to raise CancelledError even if the cancel request failed
+            # This ensures the workflow knows the task was cancelled
+            raise CancelledError()
     
     async def process(self) -> Dict[str, Any]:
         """Process the node's inputs and return outputs"""
@@ -117,6 +137,13 @@ class AsyncDigenAPINode(BaseDigenAPINode):
             
             return result
             
+        except CancelledError:
+            logger.info(f"{self.service_name}: Operation cancelled")
+            # Only unregister and cancel if we got as far as registering (job_id exists in local scope)
+            if 'job_id' in locals():
+                callback_manager.unregister_handler(job_id)
+                await self._cancel_job(job_id)
+            raise
         except Exception as e:
             logger.error(f"{self.service_name}: Error processing request: {str(e)}")
             # Only unregister if we got as far as registering (job_id exists in local scope)
