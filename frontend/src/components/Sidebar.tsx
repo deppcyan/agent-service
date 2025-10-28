@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import NodeTypeSelector from './NodeTypeSelector';
-import WorkflowList from './WorkflowList';
+import WorkflowList from './WorkflowList.tsx';
 
 interface SidebarProps {
   onNodeAdd: (nodeType: string) => void;

@@ -3,11 +3,10 @@ import { api, type NodeType } from '../services/api';
 import type { NodeTypesResponse } from '../services/nodeTypes';
 
 interface NodeTypeSelectorProps {
-  onSelect: (nodeType: NodeType) => void;
+  onNodeAdd: (nodeType: string) => void;
 }
 
-const NodeTypeSelector = ({ onSelect }: NodeTypeSelectorProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+const NodeTypeSelector = ({ onNodeAdd }: NodeTypeSelectorProps) => {
   const [categories, setCategories] = useState<Record<string, NodeType[]>>({});
   const [loading, setLoading] = useState(true);
 
@@ -35,47 +34,34 @@ const NodeTypeSelector = ({ onSelect }: NodeTypeSelectorProps) => {
     loadNodeTypes();
   }, []);
 
-  const handleSelect = (nodeType: NodeType) => {
-    console.log('NodeTypeSelector - Selected node type:', nodeType);
-    onSelect(nodeType);
-    setIsOpen(false);
-  };
+  if (loading) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        Loading nodes...
+      </div>
+    );
+  }
 
   return (
-    <div className="relative">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-      >
-        Add Node
-      </button>
-
-      {isOpen && (
-        <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
-          {loading ? (
-            <div className="p-4 text-center">Loading...</div>
-          ) : (
-            <div className="p-2">
-              {Object.entries(categories).map(([category, nodes]) => (
-                <div key={category} className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-600 mb-2 px-2">
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
-                  </h3>
-                  {nodes.map((nodeType) => (
-                    <button
-                      key={nodeType.name}
-                      onClick={() => handleSelect(nodeType)}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-sm"
-                    >
-                      {nodeType.name}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-          )}
+    <div className="p-2">
+      {Object.entries(categories).map(([category, nodes]) => (
+        <div key={category} className="mb-4">
+          <h3 className="text-sm font-semibold text-gray-600 mb-2 px-2">
+            {category.charAt(0).toUpperCase() + category.slice(1)}
+          </h3>
+          <div className="space-y-1">
+            {nodes.map((nodeType) => (
+              <button
+                key={nodeType.name}
+                onClick={() => onNodeAdd(nodeType.name)}
+                className="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-sm"
+              >
+                {nodeType.name}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 };
