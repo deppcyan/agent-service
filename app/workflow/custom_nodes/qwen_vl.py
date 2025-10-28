@@ -1,7 +1,7 @@
 from typing import Dict, Any
-from app.workflow.api_base import SyncAPIServiceNode
+from app.workflow.api_base import SyncDigenAPINode
 
-class QwenVLNode(SyncAPIServiceNode):
+class QwenVLNode(SyncDigenAPINode):
     """Node for QwenVL service"""
     
     service_name = "qwen-vl"
