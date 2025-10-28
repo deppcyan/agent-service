@@ -46,8 +46,15 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(id);
   
-  // 处理双击编辑
-  const handleDoubleClick = (e: React.MouseEvent) => {
+  // 处理双击节点
+  const handleNodeDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const node = { id, data, position: { x: 0, y: 0 }, type: 'default' };
+    setSelectedNode?.(node);
+  };
+
+  // 处理双击节点ID
+  const handleIdDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsEditing(true);
     setEditValue(id);
@@ -173,11 +180,12 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
           data.selected 
             ? 'ring-2 ring-indigo-500 shadow-lg' 
             : 'ring-1 ring-gray-700'
-        }`}
+        } cursor-pointer hover:ring-2 hover:ring-indigo-400`}
         style={{
           width: '100%',
           height: '100%'
         }}
+        onDoubleClick={handleNodeDoubleClick}
       >
       <div className="font-bold text-sm mb-2 flex items-center justify-between">
         {isEditing ? (
@@ -192,7 +200,12 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span onDoubleClick={handleDoubleClick} className="cursor-text text-gray-200">{id}</span>
+          <span 
+            onDoubleClick={handleIdDoubleClick} 
+            className="cursor-text text-gray-200 hover:text-indigo-300"
+          >
+            {id}
+          </span>
         )}
         <div className="flex items-center gap-2 relative">
           <span className="text-xs text-gray-400">{data.type}</span>
@@ -318,6 +331,57 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   const [currentWorkflowName, setCurrentWorkflowName] = useState<string | null>(null);
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
 
+  // 计算节点的执行顺序
+  const calculateNodeOrder = (nodes: Record<string, any>, connections: Connection[]) => {
+    const nodeOrder: string[] = [];
+    const visited = new Set<string>();
+    const inDegree: Record<string, number> = {};
+    const graph: Record<string, string[]> = {};
+
+    // 初始化入度和图
+    Object.keys(nodes).forEach(nodeId => {
+      inDegree[nodeId] = 0;
+      graph[nodeId] = [];
+    });
+
+    // 构建图和计算入度
+    connections.forEach(conn => {
+      if (graph[conn.from_node]) {
+        graph[conn.from_node].push(conn.to_node);
+        inDegree[conn.to_node] = (inDegree[conn.to_node] || 0) + 1;
+      }
+    });
+
+    // 找到所有入度为0的节点（起始节点）
+    const queue = Object.keys(nodes).filter(nodeId => inDegree[nodeId] === 0);
+
+    // 拓扑排序
+    while (queue.length > 0) {
+      const currentNode = queue.shift()!;
+      if (!visited.has(currentNode)) {
+        visited.add(currentNode);
+        nodeOrder.push(currentNode);
+
+        // 处理所有相邻节点
+        graph[currentNode].forEach(neighbor => {
+          inDegree[neighbor]--;
+          if (inDegree[neighbor] === 0) {
+            queue.push(neighbor);
+          }
+        });
+      }
+    }
+
+    // 添加任何剩余的节点（可能存在环）
+    Object.keys(nodes).forEach(nodeId => {
+      if (!visited.has(nodeId)) {
+        nodeOrder.push(nodeId);
+      }
+    });
+
+    return nodeOrder;
+  };
+
   // 将workflow数据转换为ReactFlow格式
   const transformWorkflowToFlow = async (data: WorkflowData) => {
     const flowNodes: Node[] = [];
@@ -330,8 +394,12 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
       return acc;
     }, {});
 
+    // 计算节点顺序
+    const nodeOrder = calculateNodeOrder(data.nodes, data.connections);
+
     // 创建节点
-    Object.entries(data.nodes).forEach(([id, node], index) => {
+    nodeOrder.forEach(id => {
+      const node = data.nodes[id];
       const nodeType = nodeTypeDefinitions[node.type];
       const inputPorts = nodeType ? Object.keys(nodeType.input_ports) : [];
       const outputPorts = nodeType ? Object.keys(nodeType.output_ports) : [];
@@ -356,10 +424,45 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
         }
       });
 
+      // 根据节点顺序和层级计算位置
+      const baseWidth = 400; // 节点的基础宽度
+      const baseHeight = 200; // 节点的基础高度
+      const xGap = baseWidth + 100; // 水平间距 = 节点宽度 + 100px间隙
+      const yGap = baseHeight + 50; // 垂直间距 = 节点高度 + 50px间隙
+      
+      // 计算节点的层级（深度）
+      const getNodeDepth = (nodeId: string): number => {
+        const incomingConnections = data.connections.filter(conn => conn.to_node === nodeId);
+        if (incomingConnections.length === 0) return 0;
+        
+        const parentDepths = incomingConnections.map(conn => 
+          getNodeDepth(conn.from_node)
+        );
+        return Math.max(...parentDepths) + 1;
+      };
+
+      // 计算每个层级的节点数量
+      const nodeDepth = getNodeDepth(id);
+      const depthCounts = new Map<number, number>();
+      nodeOrder.forEach(nid => {
+        const depth = getNodeDepth(nid);
+        depthCounts.set(depth, (depthCounts.get(depth) || 0) + 1);
+      });
+
+      // 计算当前节点在其层级中的位置
+      const nodesAtCurrentDepth = nodeOrder
+        .filter(nid => getNodeDepth(nid) === nodeDepth)
+        .indexOf(id);
+
+      // 计算节点位置，确保同层级的节点垂直分布
+      const x = xGap * nodeDepth;
+      const totalNodesAtDepth = depthCounts.get(nodeDepth) || 1;
+      const y = (yGap * nodesAtCurrentDepth) - ((totalNodesAtDepth - 1) * yGap / 2);
+
       flowNodes.push({
         id,
         type: 'default',
-        position: { x: 250 * (index % 3), y: 200 * Math.floor(index / 3) },
+        position: { x, y },
         data: { 
           label: `${id} (${node.type})`,
           type: node.type,
