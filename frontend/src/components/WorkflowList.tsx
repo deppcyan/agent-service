@@ -31,7 +31,7 @@ export default function WorkflowList({ onWorkflowLoad }: WorkflowListProps) {
 
   if (isLoading) {
     return (
-      <div className="p-4 text-center text-gray-500">
+      <div className="p-4 text-center text-gray-400">
         Loading workflows...
       </div>
     );
@@ -53,22 +53,22 @@ export default function WorkflowList({ onWorkflowLoad }: WorkflowListProps) {
 
   if (workflows.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-500">
+      <div className="p-4 text-center text-gray-400">
         No saved workflows found
       </div>
     );
   }
 
   return (
-    <div className="divide-y divide-gray-200">
+    <div className="divide-y divide-gray-700">
       {workflows.map((workflow) => (
         <button
           key={workflow.name}
           onClick={() => onWorkflowLoad(workflow.name)}
-          className="w-full p-4 text-left hover:bg-gray-50 focus:outline-none focus:bg-gray-50"
+          className="w-full p-4 text-left text-gray-300 hover:bg-gray-700 hover:text-white focus:outline-none focus:bg-gray-700"
         >
           <div className="font-medium">{workflow.name}</div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
             {new Date(workflow.last_modified * 1000).toLocaleString()}
           </div>
         </button>

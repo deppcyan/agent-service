@@ -87,19 +87,19 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg p-6 max-w-[95vw] w-full max-h-[95vh] flex flex-col">
+      <div className="bg-gray-800 rounded-lg p-6 max-w-[95vw] w-full max-h-[95vh] flex flex-col border border-gray-700">
         <div className="flex justify-between items-center mb-4 flex-shrink-0">
-          <h2 className="text-2xl font-bold">Workflow Execution</h2>
+          <h2 className="text-2xl font-bold text-gray-200">Workflow Execution</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-xl"
+            className="text-gray-400 hover:text-gray-200 text-xl"
           >
             ✕
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex-shrink-0">
+          <div className="bg-red-900/50 border border-red-700 text-red-400 px-4 py-3 rounded mb-4 flex-shrink-0">
             {error}
           </div>
         )}
@@ -107,13 +107,13 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
         {result && (
           <div className="flex-1 flex gap-6 min-h-0">
             {/* Left Panel - Results */}
-            <div className="w-1/2 overflow-y-auto pr-3 border-r">
-              <div className="flex items-center gap-2 mb-4 sticky top-0 bg-white py-2 z-10 border-b">
-                <span className="font-semibold">Status:</span>
+            <div className="w-1/2 overflow-y-auto pr-3 border-r border-gray-700">
+              <div className="flex items-center gap-2 mb-4 sticky top-0 bg-gray-800 py-2 z-10 border-b border-gray-700">
+                <span className="font-semibold text-gray-300">Status:</span>
                 <span className={`px-2 py-1 rounded text-sm ${
-                  result.status === 'completed' ? 'bg-green-100 text-green-800' :
-                  result.status === 'running' ? 'bg-blue-100 text-blue-800' :
-                  'bg-red-100 text-red-800'
+                  result.status === 'completed' ? 'bg-green-900/50 text-green-400' :
+                  result.status === 'running' ? 'bg-blue-900/50 text-blue-400' :
+                  'bg-red-900/50 text-red-400'
                 }`}>
                   {result.status}
                 </span>
@@ -127,15 +127,15 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
 
               {/* Display all result data in a structured way */}
               {Object.entries(result.result || {}).map(([key, value]) => (
-                <div key={key} className="mb-6 border rounded-lg p-4 hover:shadow-lg transition-shadow">
-                  <h3 className="font-semibold text-lg mb-3 text-gray-800">{key}</h3>
+                <div key={key} className="mb-6 border border-gray-700 rounded-lg p-4 hover:shadow-lg transition-shadow bg-gray-800/50">
+                  <h3 className="font-semibold text-lg mb-3 text-gray-200">{key}</h3>
                   {typeof value === 'object' ? (
                     <div className="space-y-3">
                       {Object.entries(value).map(([subKey, subValue]) => {
                         const isUrl = typeof subValue === 'string' && (subValue.startsWith('http') || subValue.startsWith('/files/'));
                         return (
                           <div key={subKey} className="ml-4">
-                            <span className="font-medium text-gray-700">{subKey}: </span>
+                            <span className="font-medium text-gray-300">{subKey}: </span>
                             {Array.isArray(subValue) && subValue.every(item => typeof item === 'string' && (item.startsWith('http') || item.startsWith('/files/'))) ? (
                               <div className="space-y-2">
                                 {subValue.map((url, idx) => (
@@ -158,7 +158,7 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
                                 ))}
                               </div>
                             ) : typeof subValue === 'object' ? (
-                              <pre className="mt-2 bg-gray-50 p-3 rounded overflow-x-auto text-sm">
+                              <pre className="mt-2 bg-gray-900/50 p-3 rounded overflow-x-auto text-sm text-gray-300 border border-gray-700">
                                 {JSON.stringify(subValue, null, 2)}
                               </pre>
                             ) : isUrl ? (
@@ -178,14 +178,14 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
                                 {String(subValue)}
                               </a>
                             ) : (
-                              <span className="whitespace-pre-wrap text-gray-600">{String(subValue)}</span>
+                              <span className="whitespace-pre-wrap text-gray-400">{String(subValue)}</span>
                             )}
                           </div>
                         );
                       })}
                     </div>
                   ) : (
-                    <div className="ml-4 whitespace-pre-wrap text-gray-600">{String(value)}</div>
+                    <div className="ml-4 whitespace-pre-wrap text-gray-400">{String(value)}</div>
                   )}
                 </div>
               ))}
@@ -193,7 +193,7 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
 
             {/* Right Panel - Media */}
             <div className="w-1/2 overflow-y-auto pl-3">
-              <h3 className="font-semibold text-xl mb-4 sticky top-0 bg-white py-2 z-10 border-b">Generated Media</h3>
+              <h3 className="font-semibold text-xl mb-4 sticky top-0 bg-gray-800 py-2 z-10 border-b border-gray-700 text-gray-200">Generated Media</h3>
               <div className="grid grid-cols-2 gap-4">
                 {mediaUrls.map((url, index) => {
                   const isVideo = url.toLowerCase().endsWith('.mp4');
@@ -201,9 +201,9 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
                     <div 
                       key={index} 
                       id={`media-${url}`}
-                      className="border rounded-lg p-3 transition-all duration-300 bg-gray-50"
+                      className="border border-gray-700 rounded-lg p-3 transition-all duration-300 bg-gray-800/50"
                     >
-                      <div className="aspect-video relative overflow-hidden rounded bg-gray-100">
+                      <div className="aspect-video relative overflow-hidden rounded bg-gray-900">
                         {isVideo ? (
                           <video
                             controls
@@ -221,7 +221,7 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
                         )}
                       </div>
                       <div className="mt-2 flex justify-between items-center text-xs">
-                        <span className="text-gray-500">Media {index + 1}</span>
+                        <span className="text-gray-400">Media {index + 1}</span>
                         <div className="flex gap-2">
                           <button
                             onClick={() => {
@@ -258,8 +258,8 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
         {!result?.status || result.status === 'running' ? (
           <div className="flex items-center justify-center py-6 flex-shrink-0 gap-4">
             <div className="flex items-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <span className="ml-3 text-gray-600">Processing...</span>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+              <span className="ml-3 text-gray-400">Processing...</span>
             </div>
             <button
               onClick={handleCancel}
@@ -307,7 +307,7 @@ const ExecuteWorkflowButton = ({ workflow }: ExecuteWorkflowButtonProps) => {
     <>
       <button
         onClick={handleExecute}
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+        className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
       >
         Execute
       </button>

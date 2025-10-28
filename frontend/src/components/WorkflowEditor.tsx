@@ -140,7 +140,7 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
 
   return (
     <div 
-      className="p-2 rounded-lg transition-all duration-200 ring-1 ring-black/70 resize-node"
+      className="p-2 rounded-lg transition-all duration-200 ring-1 ring-white/30 resize-node"
       style={{
         minWidth: data.width || 400,
         width: data.width || 400,
@@ -149,10 +149,10 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
       }}
     >
       <div 
-        className={`px-4 py-3 rounded-md bg-white transition-all duration-200 ${
+        className={`px-4 py-3 rounded-md bg-gray-800 transition-all duration-200 ${
           data.selected 
-            ? 'ring-2 ring-blue-500 shadow-lg' 
-            : 'ring-1 ring-gray-200/50'
+            ? 'ring-2 ring-indigo-500 shadow-lg' 
+            : 'ring-1 ring-gray-700'
         }`}
         style={{
           width: '100%',
@@ -172,12 +172,12 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span onDoubleClick={handleDoubleClick} className="cursor-text">{id}</span>
+          <span onDoubleClick={handleDoubleClick} className="cursor-text text-gray-200">{id}</span>
         )}
         <div className="flex items-center gap-2 relative">
-          <span className="text-xs text-gray-500">{data.type}</span>
+          <span className="text-xs text-gray-400">{data.type}</span>
           <button 
-            className="cursor-pointer text-gray-400 hover:text-gray-600 px-1"
+            className="cursor-pointer text-gray-400 hover:text-gray-200 px-1"
             onClick={(e) => {
               e.stopPropagation();
               setShowMenu(!showMenu);
@@ -187,11 +187,11 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
           </button>
           {showMenu && (
             <div 
-              className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg py-1 z-50 min-w-[100px]"
+              className="absolute right-0 top-full mt-1 bg-gray-800 rounded-lg shadow-lg py-1 z-50 min-w-[100px] border border-gray-700"
               onClick={(e) => e.stopPropagation()}
             >
               <button
-                className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100"
+                className="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
                 onClick={(e) => {
                   e.stopPropagation();
                   const node = { id, data, position: { x: 0, y: 0 }, type: 'default' };
@@ -202,7 +202,7 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
                 Edit
               </button>
               <button
-                className="w-full px-3 py-1.5 text-left text-sm text-red-600 hover:bg-gray-100"
+                className="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-gray-700 hover:text-red-300"
                 onClick={(e) => {
                   e.stopPropagation();
                   setNodes?.(nodes => nodes.filter(n => n.id !== id));
@@ -218,8 +218,8 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
       
       <div className="grid grid-cols-2 gap-4">
         {/* 输入端口 */}
-        <div className="border-r border-gray-200 pr-3">
-          <div className="text-xs font-semibold text-gray-600 mb-2">Inputs</div>
+        <div className="border-r border-gray-700 pr-3">
+          <div className="text-xs font-semibold text-indigo-400 mb-2">Inputs</div>
           {ports.inputPorts.map((port) => (
             <div key={`${id}-input-${port}`} className="relative mb-2 last:mb-0">
               <Handle
@@ -231,9 +231,9 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
               />
               <div className="ml-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-gray-700">{port}:</span>
+                  <span className="text-xs font-medium text-gray-300">{port}:</span>
                   <span 
-                    className="text-xs text-gray-500 truncate max-w-[120px]" 
+                    className="text-xs text-gray-400 truncate max-w-[120px]" 
                     title={JSON.stringify(data.inputs[port], null, 2)}
                   >
                     {formatValue(data.inputs[port])}
@@ -246,7 +246,7 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
 
         {/* 输出端口 */}
         <div className="pl-3">
-          <div className="text-xs font-semibold text-gray-600 mb-2">Outputs</div>
+          <div className="text-xs font-semibold text-indigo-400 mb-2">Outputs</div>
           {ports.outputPorts.map((port) => (
             <div key={`${id}-output-${port}`} className="relative mb-2 last:mb-0">
               <Handle
@@ -258,7 +258,7 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
               />
               <div className="mr-3">
                 <div className="flex items-center justify-end">
-                  <span className="text-xs font-medium text-gray-700">{port}</span>
+                  <span className="text-xs font-medium text-gray-300">{port}</span>
                 </div>
               </div>
             </div>
@@ -575,8 +575,15 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   // 缓存 workflow 对象以避免重复执行
   const workflow = useMemo(() => transformFlowToWorkflow(nodes, edges), [nodes, edges]);
 
+  // 自定义连线样式
+  const edgeStyles = {
+    stroke: '#6366f1', // Indigo-500
+    strokeWidth: 2,
+    animated: true,
+  };
+
   return (
-    <div className="h-screen w-full flex">
+    <div className="h-screen w-full flex bg-gray-900 text-gray-100">
       <Sidebar
         onNodeAdd={(nodeType: string) => {
           api.getNodeTypes().then(nodeTypes => {
@@ -624,8 +631,13 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
           nodes={nodes}
           edges={edges.map(edge => ({
             ...edge,
+            ...edgeStyles,
             className: edge.id === selectedEdge ? 'selected-edge' : '',
             animated: edge.id === selectedEdge,
+            style: {
+              ...edgeStyles,
+              stroke: edge.id === selectedEdge ? '#818cf8' : '#6366f1', // Lighter color when selected
+            }
           }))}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
@@ -640,8 +652,11 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
           connectionMode={ConnectionMode.Loose}
           fitView
         >
-          <Background />
-          <Controls />
+          <Background color="#4b5563" gap={16} />
+          <Controls 
+            className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-900 [&>button]:!text-gray-400 [&>button]:!border-gray-700 
+              [&>button:hover]:!bg-gray-700 [&>button:hover]:!text-gray-200"
+          />
         </ReactFlow>
 
         {selectedNode && (
@@ -656,7 +671,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
         {/* Context Menu */}
         {contextMenu && (
           <div
-            className="fixed bg-white rounded-lg shadow-lg py-2 z-50"
+            className="fixed bg-gray-800 rounded-lg shadow-lg py-2 z-50 border border-gray-700"
             style={{
               left: contextMenu.x,
               top: contextMenu.y,
@@ -664,7 +679,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
           >
             {contextMenu.type === 'edge' ? (
               <button
-                className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
+                className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300"
                 onClick={() => onEdgeDelete(contextMenu.id)}
               >
                 Delete Connection
@@ -672,7 +687,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
             ) : (
               <>
                 <button
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                  className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white"
                   onClick={() => {
                     const node = nodes.find(n => n.id === contextMenu.id);
                     if (node) setSelectedNode(node);
@@ -682,7 +697,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
                   Edit Node
                 </button>
                 <button
-                  className="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
+                  className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300"
                   onClick={() => {
                     setNodes(nodes => nodes.filter(n => n.id !== contextMenu.id));
                     setContextMenu(null);

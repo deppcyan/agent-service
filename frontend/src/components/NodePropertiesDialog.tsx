@@ -58,32 +58,34 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
 
   if (!isOpen || !nodeType) return null;
 
+  const inputClasses = "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
+  const textareaClasses = `${inputClasses} font-mono text-sm h-32`;
+
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
       style={{ zIndex: 9999 }}
       onClick={(e) => {
-        // 只有点击背景时才关闭
         if (e.target === e.currentTarget) {
           onClose();
         }
       }}
     >
       <div 
-        className="bg-white rounded-lg p-6 w-[480px] max-h-[80vh] overflow-y-auto"
+        className="bg-gray-800 rounded-lg p-6 w-[480px] max-h-[80vh] overflow-y-auto border border-gray-700"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold mb-4">Edit Node: {node.data.type}</h2>
+        <h2 className="text-xl font-bold mb-4 text-gray-200">Edit Node: {node.data.type}</h2>
 
         {loading ? (
-          <div className="text-center py-4">Loading...</div>
+          <div className="text-center py-4 text-gray-300">Loading...</div>
         ) : error ? (
-          <div className="text-red-600 py-4">{error}</div>
+          <div className="text-red-400 py-4">{error}</div>
         ) : (
           <div className="space-y-4">
             {Object.entries(nodeType.input_ports).map(([key, port]) => (
               <div key={key}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   {key}
                   {!port.required && ' (optional)'}
                 </label>
@@ -95,7 +97,7 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                       ...inputValues,
                       [key]: e.target.value
                     })}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={inputClasses}
                     placeholder={`Enter ${key}`}
                   />
                 ) : port.port_type === 'number' ? (
@@ -106,7 +108,7 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                       ...inputValues,
                       [key]: e.target.valueAsNumber || null
                     })}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={inputClasses}
                     placeholder={`Enter ${key}`}
                   />
                 ) : port.port_type === 'boolean' ? (
@@ -116,7 +118,7 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                       ...inputValues,
                       [key]: e.target.value === 'true'
                     })}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={inputClasses}
                   >
                     <option value="true">True</option>
                     <option value="false">False</option>
@@ -144,10 +146,10 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                           });
                         }
                       }}
-                      className="w-full px-3 py-2 border rounded-md font-mono text-sm h-32 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={textareaClasses}
                       placeholder={`Enter ${key} as JSON array: ["item1", "item2"]`}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Enter as JSON array, e.g. ["item1", "item2"]</p>
+                    <p className="mt-1 text-xs text-gray-400">Enter as JSON array, e.g. ["item1", "item2"]</p>
                   </div>
                 ) : port.port_type === 'object' || port.port_type === 'json' ? (
                   <div>
@@ -171,9 +173,9 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                         }
                       }}
                       placeholder={`Enter ${key} as JSON object: {}`}
-                      className="w-full px-3 py-2 border rounded-md font-mono text-sm h-32 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={textareaClasses}
                     />
-                    <p className="mt-1 text-xs text-gray-500">Enter as JSON object</p>
+                    <p className="mt-1 text-xs text-gray-400">Enter as JSON object</p>
                   </div>
                 ) : (
                   <input
@@ -183,11 +185,11 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                       ...inputValues,
                       [key]: e.target.value
                     })}
-                    className="w-full px-3 py-2 border rounded-md"
+                    className={inputClasses}
                   />
                 )}
                 {port.required && !inputValues[key] && (
-                  <p className="mt-1 text-sm text-red-600">This field is required</p>
+                  <p className="mt-1 text-sm text-red-400">This field is required</p>
                 )}
               </div>
             ))}
@@ -197,13 +199,13 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
         <div className="flex justify-end gap-2 mt-6">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
+            className="px-4 py-2 text-gray-400 hover:text-gray-200 bg-gray-700 rounded hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             Save
           </button>

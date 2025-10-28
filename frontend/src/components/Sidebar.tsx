@@ -13,11 +13,11 @@ export default function Sidebar({ onNodeAdd, onWorkflowLoad }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'nodes' | 'workflows'>('nodes');
 
   return (
-    <div className={`bg-gray-100 border-r border-gray-200 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-64'}`}>
+    <div className={`bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-64'}`}>
       {/* Collapse button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="p-2 hover:bg-gray-200 self-end"
+        className="p-2 hover:bg-gray-700 self-end text-gray-400 hover:text-gray-200"
       >
         {isCollapsed ? (
           <ChevronRightIcon className="w-5 h-5" />
@@ -28,15 +28,23 @@ export default function Sidebar({ onNodeAdd, onWorkflowLoad }: SidebarProps) {
 
       {/* Tabs */}
       {!isCollapsed && (
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-gray-700">
           <button
-            className={`flex-1 py-2 px-4 ${activeTab === 'nodes' ? 'bg-white border-b-2 border-blue-500' : 'hover:bg-gray-50'}`}
+            className={`flex-1 py-2 px-4 ${
+              activeTab === 'nodes' 
+                ? 'bg-gray-900 border-b-2 border-indigo-500 text-indigo-400' 
+                : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+            }`}
             onClick={() => setActiveTab('nodes')}
           >
             Nodes
           </button>
           <button
-            className={`flex-1 py-2 px-4 ${activeTab === 'workflows' ? 'bg-white border-b-2 border-blue-500' : 'hover:bg-gray-50'}`}
+            className={`flex-1 py-2 px-4 ${
+              activeTab === 'workflows' 
+                ? 'bg-gray-900 border-b-2 border-indigo-500 text-indigo-400' 
+                : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+            }`}
             onClick={() => setActiveTab('workflows')}
           >
             Workflows

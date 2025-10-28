@@ -36,7 +36,7 @@ const NodeTypeSelector = ({ onNodeAdd }: NodeTypeSelectorProps) => {
 
   if (loading) {
     return (
-      <div className="p-4 text-center text-gray-500">
+      <div className="p-4 text-center text-gray-400">
         Loading nodes...
       </div>
     );
@@ -46,7 +46,7 @@ const NodeTypeSelector = ({ onNodeAdd }: NodeTypeSelectorProps) => {
     <div className="p-2">
       {Object.entries(categories).map(([category, nodes]) => (
         <div key={category} className="mb-4">
-          <h3 className="text-sm font-semibold text-gray-600 mb-2 px-2">
+          <h3 className="text-sm font-semibold text-indigo-400 mb-2 px-2">
             {category.charAt(0).toUpperCase() + category.slice(1)}
           </h3>
           <div className="space-y-1">
@@ -54,7 +54,7 @@ const NodeTypeSelector = ({ onNodeAdd }: NodeTypeSelectorProps) => {
               <button
                 key={nodeType.name}
                 onClick={() => onNodeAdd(nodeType.name)}
-                className="block w-full text-left px-4 py-2 hover:bg-gray-100 rounded text-sm"
+                className="block w-full text-left px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded text-sm"
               >
                 {nodeType.name}
               </button>
