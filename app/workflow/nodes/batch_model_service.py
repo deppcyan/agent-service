@@ -1,45 +1,46 @@
 from typing import Dict, Any, Optional
 from app.workflow.nodes.iterative import IterativeNode
 from app.workflow.nodes.model_service import ModelServiceNode
+from app.workflow.nodes.model_request import ModelRequestNode
 from app.utils.logger import logger
 
 class BatchModelServiceNode(IterativeNode):
     """批量处理模型服务请求的节点
     
-    这个节点可以批量处理多个输入，并调用模型服务。
+    这个节点可以批量处理多个请求，并调用模型服务。
     支持并行处理和错误恢复。
+    
+    工作流程：
+    1. 接收模型名称和一系列请求数据
+    2. 对每个请求创建一个 ModelServiceNode 实例
+    3. 并行处理所有请求
+    4. 合并所有结果
     """
     
     def __init__(self, node_id: Optional[str] = None):
         super().__init__(node_id)
         
-        # 添加模型服务相关的输入端口
+        # 基本配置
         self.add_input_port("model", "string", True)  # 模型名称
         self.add_input_port("api_url", "string", True)  # API 端点
         self.add_input_port("callback_url", "string", True)  # 回调 URL
         
-        # 可选的模型参数
-        self.add_input_port("width", "number", False, 768)
-        self.add_input_port("height", "number", False, 768)
-        self.add_input_port("negative_prompt", "string", False, "")
-        self.add_input_port("extra_options", "object", False, {})
-        
-        # 修改输出端口以包含更多信息
+        # 输出端口
         self.add_output_port("local_urls", "array")  # 本地URL列表
         self.add_output_port("wasabi_urls", "array")  # Wasabi URL列表
         self.add_output_port("aws_urls", "array")  # AWS URL列表
         self.add_output_port("metadata", "array")  # 每个结果的元数据
     
-    async def process_item(self, prompt: str) -> Dict[str, Any]:
-        """处理单个 prompt
+    async def process_item(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """处理单个请求
         
         Args:
-            prompt: 输入的 prompt 字符串
+            request_data: 包含输入和选项的请求数据
             
         Returns:
             包含处理结果的字典
         """
-        logger.info(f"Processing prompt: {prompt}")
+        logger.info(f"Processing request with options: {request_data.get('options', {})}")
         
         # 创建模型服务节点
         model_node = ModelServiceNode()
@@ -47,28 +48,23 @@ class BatchModelServiceNode(IterativeNode):
         # 设置输入值
         model_node.input_values = {
             "model": self.input_values["model"],
-            "input": [],  # 空列表，因为我们使用 prompt
-            "prompt": prompt,
+            "request": request_data,  # 直接使用请求数据
             "api_url": self.input_values["api_url"],
-            "callback_url": self.input_values["callback_url"],
-            "width": self.input_values.get("width", 768),
-            "height": self.input_values.get("height", 768),
-            "negative_prompt": self.input_values.get("negative_prompt", ""),
-            "extra_options": self.input_values.get("extra_options", {})
+            "callback_url": self.input_values["callback_url"]
         }
         
         # 处理并返回结果
         try:
             result = await model_node.process()
             return {
-                "prompt": prompt,
+                "request": request_data,  # 保存原始请求以便追踪
                 "local_urls": result.get("local_urls", []),
                 "wasabi_urls": result.get("wasabi_urls", []),
                 "aws_urls": result.get("aws_urls", []),
                 "metadata": result.get("metadata", {})
             }
         except Exception as e:
-            logger.error(f"Error processing prompt '{prompt}': {str(e)}")
+            logger.error(f"Error processing request: {str(e)}")
             raise
     
     async def process(self) -> Dict[str, Any]:
@@ -94,7 +90,7 @@ class BatchModelServiceNode(IterativeNode):
             all_wasabi_urls.extend(r.get("wasabi_urls", []))
             all_aws_urls.extend(r.get("aws_urls", []))
             all_metadata.append({
-                "prompt": r.get("prompt"),
+                "request": r.get("request"),  # 包含原始请求信息
                 "metadata": r.get("metadata", {})
             })
         

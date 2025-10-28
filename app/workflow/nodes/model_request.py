@@ -12,11 +12,11 @@ class InputType(str, Enum):
 class ModelRequestInputNode(WorkflowNode):
     """模型请求输入节点
     
-    用于构建和验证单一类型的输入数据。支持单个或批量输入：
-    1. 单个输入：提供单个URL (url)
-    2. 批量输入：提供URL列表 (urls)
+    用于构建和验证单一类型的输入数据。支持单个或批量输入:
+    1. 单个输入: 提供单个URL (url)
+    2. 批量输入: 提供URL列表 (urls)
     
-    type参数指定输入类型，url和urls只能提供一个。
+    type参数指定输入类型: url和urls只能提供一个。
     """
     
     category = "model-request"
