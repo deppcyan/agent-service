@@ -12,7 +12,7 @@ class StoryboardParserNode(WorkflowNode):
         
         # Input ports
         self.add_input_port("text", "string", True)  # QwenVL response text (JSON format)
-        self.add_input_port("image_url", "string", True)  # Base image URL to be edited
+        self.add_input_port("image_url", "string", False)  # Base image URL to be edited
         self.add_input_port("max_segments", "number", False, 3)  # Maximum number of segments/shots to process
         
         # Output ports

@@ -49,6 +49,16 @@ export interface WorkflowStatusResponse {
   error?: string;
 }
 
+export interface SavedWorkflow {
+  name: string;
+  path: string;
+  last_modified: number;
+}
+
+export interface SavedWorkflowsResponse {
+  workflows: SavedWorkflow[];
+}
+
 export const api = {
 
   async getNodeTypes(): Promise<NodeTypesResponse> {
@@ -82,6 +92,36 @@ export const api = {
     const response = await axios.get(`${API_BASE_URL}/status/${taskId}`, {
       headers: {
         'x-api-key': API_KEY
+      }
+    });
+    return response.data;
+  },
+
+  async listWorkflows(): Promise<SavedWorkflowsResponse> {
+    const response = await axios.get(`${API_BASE_URL}/list`, {
+      headers: {
+        'x-api-key': API_KEY
+      }
+    });
+    return response.data;
+  },
+
+  async getWorkflow(name: string): Promise<WorkflowData> {
+    const response = await axios.get(`${API_BASE_URL}/${name}`, {
+      headers: {
+        'x-api-key': API_KEY
+      }
+    });
+    return response.data;
+  },
+
+  async saveWorkflow(name: string, workflow: WorkflowData): Promise<{ status: string; message: string }> {
+    const response = await axios.post(`${API_BASE_URL}/save`, workflow, {
+      headers: {
+        'x-api-key': API_KEY
+      },
+      params: {
+        workflow_name: name
       }
     });
     return response.data;

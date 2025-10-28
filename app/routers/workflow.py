@@ -1,11 +1,18 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
-from typing import Dict, Any, List
+from fastapi import APIRouter, HTTPException, Depends, Request, Body
+from typing import Dict, Any, List, Optional
+import os
+import json
+from pathlib import Path
 
 from app.utils.logger import logger
 from app.utils.utils import verify_api_key
 from app.core.workflow_manager import workflow_manager
 from app.core.job_manager import job_manager
 from app.schemas.api import WorkflowRequest, NodeInfo, NodePortInfo
+
+# Define workflow storage path
+WORKFLOW_DIR = Path("user/workflow")
+WORKFLOW_DIR.mkdir(parents=True, exist_ok=True)
 
 router = APIRouter(prefix="/v1/workflow", tags=["workflow"])
 
@@ -224,3 +231,68 @@ async def get_available_nodes():
             continue
     
     return result
+
+@router.get("/list")
+async def list_workflows(
+    api_key: str = Depends(verify_api_key)
+):
+    """List all saved workflows"""
+    try:
+        workflows = []
+        for file in WORKFLOW_DIR.glob("*.json"):
+            workflows.append({
+                "name": file.stem,
+                "path": str(file.relative_to(WORKFLOW_DIR)),
+                "last_modified": os.path.getmtime(file)
+            })
+        return {
+            "workflows": sorted(workflows, key=lambda x: x["last_modified"], reverse=True)
+        }
+    except Exception as e:
+        logger.error(f"Error listing workflows: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{workflow_name}")
+async def get_workflow(
+    workflow_name: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """Get a specific saved workflow by name"""
+    try:
+        workflow_path = WORKFLOW_DIR / f"{workflow_name}.json"
+        if not workflow_path.exists():
+            raise HTTPException(status_code=404, detail=f"Workflow '{workflow_name}' not found")
+            
+        with open(workflow_path, "r") as f:
+            workflow = json.load(f)
+            
+        return workflow
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reading workflow {workflow_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/save")
+async def save_workflow(
+    workflow_name: str,
+    workflow: Dict[str, Any] = Body(...),
+    api_key: str = Depends(verify_api_key)
+):
+    """Save a workflow with the given name"""
+    try:
+        # Sanitize workflow name
+        workflow_name = workflow_name.replace("/", "_").replace("\\", "_")
+        workflow_path = WORKFLOW_DIR / f"{workflow_name}.json"
+        
+        # Save workflow
+        with open(workflow_path, "w") as f:
+            json.dump(workflow, f, indent=2)
+            
+        return {
+            "status": "success",
+            "message": f"Workflow saved as '{workflow_name}'"
+        }
+    except Exception as e:
+        logger.error(f"Error saving workflow {workflow_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
