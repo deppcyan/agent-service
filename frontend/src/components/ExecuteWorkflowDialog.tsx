@@ -6,8 +6,9 @@ interface ExecuteWorkflowButtonProps {
 }
 
 interface ExecuteWorkflowDialogProps {
-  workflow: WorkflowData;
+  taskId: string;
   onClose: () => void;
+  onCancel: () => void;
 }
 
 interface WorkflowResult {
@@ -18,35 +19,22 @@ interface WorkflowResult {
 
 const POLL_INTERVAL = 2000; // 2 seconds
 
-const ExecuteWorkflowDialog = ({ workflow, onClose }: ExecuteWorkflowDialogProps) => {
-  const [taskId, setTaskId] = useState<string | null>(null);
+const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDialogProps) => {
   const [result, setResult] = useState<WorkflowResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-
-  // Start workflow execution when dialog opens
-  useEffect(() => {
-    const startExecution = async () => {
-      try {
-        const response = await api.executeWorkflow({
-          workflow
-        });
-        setTaskId(response.task_id);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to start workflow');
-      }
-    };
-    startExecution();
-  }, [workflow]);
 
   // Poll for results when we have a task ID
   useEffect(() => {
     if (!taskId) return;
 
+    let mounted = true;
     const pollInterval = setInterval(async () => {
       try {
         const status = await api.getWorkflowStatus(taskId);
-        setResult(status);
+        if (mounted) {
+          setResult(status);
+        }
         
         // Stop polling if workflow is complete or failed
         if (status.status !== 'running') {
@@ -58,16 +46,19 @@ const ExecuteWorkflowDialog = ({ workflow, onClose }: ExecuteWorkflowDialogProps
       }
     }, POLL_INTERVAL);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      mounted = false;
+      clearInterval(pollInterval);
+    };
   }, [taskId]);
 
   // Handle workflow cancellation
   const handleCancel = async () => {
-    if (!taskId || isCancelling) return;
+    if (isCancelling) return;
     
     try {
       setIsCancelling(true);
-      await api.cancelWorkflow(taskId);
+      await onCancel();
       // Status will be updated in the next poll
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to cancel workflow');
@@ -290,20 +281,45 @@ const ExecuteWorkflowDialog = ({ workflow, onClose }: ExecuteWorkflowDialogProps
 
 const ExecuteWorkflowButton = ({ workflow }: ExecuteWorkflowButtonProps) => {
   const [showDialog, setShowDialog] = useState(false);
+  const [taskId, setTaskId] = useState<string | null>(null);
+
+  const handleExecute = async () => {
+    try {
+      const response = await api.executeWorkflow({ workflow });
+      setTaskId(response.task_id);
+      setShowDialog(true);
+    } catch (e) {
+      console.error('Failed to execute workflow:', e);
+      // 可以添加一个错误提示
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!taskId) return;
+    try {
+      await api.cancelWorkflow(taskId);
+    } catch (e) {
+      console.error('Failed to cancel workflow:', e);
+    }
+  };
 
   return (
     <>
       <button
-        onClick={() => setShowDialog(true)}
+        onClick={handleExecute}
         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
       >
         Execute
       </button>
 
-      {showDialog && (
+      {showDialog && taskId && (
         <ExecuteWorkflowDialog
-          workflow={workflow}
-          onClose={() => setShowDialog(false)}
+          taskId={taskId}
+          onClose={() => {
+            setShowDialog(false);
+            setTaskId(null);
+          }}
+          onCancel={handleCancel}
         />
       )}
     </>

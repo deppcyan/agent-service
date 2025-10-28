@@ -536,6 +536,9 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
     ),
   }), [setSelectedNode, setNodes]);
 
+  // 缓存 workflow 对象以避免重复执行
+  const workflow = useMemo(() => transformFlowToWorkflow(nodes, edges), [nodes, edges]);
+
   return (
     <div className="h-screen w-full">
       <Panel position="top-right" className="flex gap-2">
@@ -553,7 +556,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
           Export
         </button>
         <ExecuteWorkflowButton
-          workflow={transformFlowToWorkflow(nodes, edges)}
+          workflow={workflow}
         />
       </Panel>
       {selectedNode && (
