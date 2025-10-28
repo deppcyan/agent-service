@@ -9,7 +9,7 @@ from app.schemas.api import (
 
 router = APIRouter(tags=["jobs"])
 
-@router.post("/v1/jobs/webhook")
+@router.post("/webhook")
 async def handle_webhook(
     request: Request
 ):

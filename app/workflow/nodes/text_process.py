@@ -9,6 +9,7 @@ class TextToListNode(WorkflowNode):
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
         self.add_input_port("text", "string", True)
+        self.add_input_port("repeat_count", "number", False, "Number of times to repeat the text (default: 1)")
         self.add_output_port("list", "array")  # Output will be string array
     
     async def process(self) -> Dict[str, Any]:
@@ -16,10 +17,14 @@ class TextToListNode(WorkflowNode):
             raise ValueError("Required inputs missing")
             
         text = self.input_values["text"]
+        repeat_count = int(self.input_values.get("repeat_count", 1))
         
-        # Convert single text into single-element list
+        if repeat_count < 1:
+            raise ValueError("repeat_count must be a positive integer")
+            
+        # Convert text into list with specified number of repetitions
         return {
-            "list": [text]
+            "list": [text] * repeat_count
         }
 
 
@@ -45,29 +50,6 @@ class ListToTextNode(WorkflowNode):
         # Take first element from list and convert to text
         return {
             "text": input_list[0]
-        }
-
-
-class InputTextNode(WorkflowNode):
-    """Custom node that passes through text input unchanged.
-    This can be used as a starting point or marker in workflows."""
-    
-    category = "text_process"
-    
-    def __init__(self, node_id: str = None):
-        super().__init__(node_id)
-        self.add_input_port("text", "string", True)
-        self.add_output_port("text", "string")
-    
-    async def process(self) -> Dict[str, Any]:
-        if not self.validate_inputs():
-            raise ValueError("Required inputs missing")
-            
-        text = self.input_values["text"]
-        
-        # Simply pass through the input text
-        return {
-            "text": text
         }
 
 

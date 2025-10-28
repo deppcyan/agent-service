@@ -22,6 +22,7 @@ const ExecuteWorkflowDialog = ({ workflow, onClose }: ExecuteWorkflowDialogProps
   const [taskId, setTaskId] = useState<string | null>(null);
   const [result, setResult] = useState<WorkflowResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Start workflow execution when dialog opens
   useEffect(() => {
@@ -59,6 +60,21 @@ const ExecuteWorkflowDialog = ({ workflow, onClose }: ExecuteWorkflowDialogProps
 
     return () => clearInterval(pollInterval);
   }, [taskId]);
+
+  // Handle workflow cancellation
+  const handleCancel = async () => {
+    if (!taskId || isCancelling) return;
+    
+    try {
+      setIsCancelling(true);
+      await api.cancelWorkflow(taskId);
+      // Status will be updated in the next poll
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to cancel workflow');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   // Extract media URLs from results
   // Extract media URLs from results, including URLs in arrays
@@ -249,9 +265,22 @@ const ExecuteWorkflowDialog = ({ workflow, onClose }: ExecuteWorkflowDialogProps
         )}
 
         {!result?.status || result.status === 'running' ? (
-          <div className="flex items-center justify-center py-6 flex-shrink-0">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <span className="ml-3 text-gray-600">Processing...</span>
+          <div className="flex items-center justify-center py-6 flex-shrink-0 gap-4">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-600">Processing...</span>
+            </div>
+            <button
+              onClick={handleCancel}
+              disabled={isCancelling}
+              className={`px-4 py-2 rounded text-white ${
+                isCancelling 
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-red-500 hover:bg-red-600'
+              }`}
+            >
+              {isCancelling ? 'Cancelling...' : 'Cancel'}
+            </button>
           </div>
         ) : null}
       </div>
