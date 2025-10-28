@@ -88,10 +88,10 @@ class AsyncDigenAPINode(BaseDigenAPINode):
         
     async def _cancel_job(self, job_id: str) -> None:
         """Cancel a running job by making a request to the cancel URL"""
-        # Get cancel URL, use default if not provided
-        base_url = self.input_values['api_url']
-            
-        cancel_url = self.input_values.get("cancel_url", f"{base_url}/{job_id}")
+        
+        # Remove trailing slash if present and format the cancel URL
+        base_url = self.input_values['cancel_url'].rstrip('/')
+        cancel_url = f"{base_url}/{job_id}"
         
         try:
             await self._make_request({"job_id": job_id}, method="POST", url=cancel_url)
