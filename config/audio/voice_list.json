@@ -1,0 +1,10 @@
+[
+	{
+		"url": "https://digen-app-config.s3.us-west-1.amazonaws.com/agent-service/audio/voices/female.wav",
+		"description": "女人" 
+	},
+	{
+		"url": "https://digen-app-config.s3.us-west-1.amazonaws.com/agent-service/audio/voices/male.wav",
+		"description": "男人" 
+	}
+]

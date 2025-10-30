@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from app.utils.utils import init_service_url
 from app.core.model_config import load_model_configs, refresh_model_configs
 from app.core.config_manager import config_manager
+from app.storage.s3_manager import init_s3_providers
 from app.routers import workflow, files, jobs, health, config as config_router
 
 @asynccontextmanager
@@ -22,6 +23,9 @@ async def lifespan(app: FastAPI):
     
     # Initialize service URL
     init_service_url()
+    
+    # Initialize S3 providers
+    init_s3_providers()
     
     # Register file-specific config refreshers
     config_manager.register_file_refresher("config/model.json", refresh_model_configs)
