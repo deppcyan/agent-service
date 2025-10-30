@@ -12,8 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.utils.utils import init_service_url
-from app.core.model_config import load_model_configs
-from app.routers import workflow, files, jobs, health
+from app.core.model_config import load_model_configs, refresh_model_configs
+from app.core.config_manager import config_manager
+from app.routers import workflow, files, jobs, health, config as config_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,8 +23,14 @@ async def lifespan(app: FastAPI):
     # Initialize service URL
     init_service_url()
     
-    # Load model configurations
-    load_model_configs("config/model_config.json")
+    # Register in-memory config refreshers
+    config_manager.register_refresher(refresh_model_configs)
+
+    # Load model configurations (local first)
+    load_model_configs("config/model.json")
+
+    # Attempt to sync remote configs and refresh loaded configs if updated
+    await config_manager.sync_from_remote()
     
     # Load workflow nodes
     from app.workflow.registry import node_registry
@@ -52,6 +59,7 @@ app.include_router(workflow.router)
 app.include_router(files.router)
 app.include_router(jobs.router)
 app.include_router(health.router)
+app.include_router(config_router.router)
 
 if __name__ == "__main__":
     import uvicorn

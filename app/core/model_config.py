@@ -7,6 +7,7 @@ from app.utils.logger import logger
 # 全局变量
 MODEL_CONFIGS: Dict[str, 'ModelConfig'] = {}
 DEFAULT_MODEL_NAME = None  # 添加默认模型名称变量
+_MODEL_CONFIG_PATH: Optional[str] = None
 
 class ModelConfig:
     def __init__(self, config_data: Dict[str, Any]):
@@ -93,9 +94,12 @@ class ModelConfig:
         """获取参数的默认值"""
         return self.default_params.get(param_name)
 
+
 def load_model_configs(model_config_path: str):
     """Load all model configurations"""
     try:
+        global _MODEL_CONFIG_PATH
+        _MODEL_CONFIG_PATH = model_config_path
         if not os.path.exists(model_config_path):
             logger.error(f"Configuration file not found: {model_config_path}")
             raise FileNotFoundError(f"Configuration file not found: {model_config_path}")
@@ -118,6 +122,7 @@ def load_model_configs(model_config_path: str):
             
             # 加载模型配置
             models_config = config_data.get("models", {})
+            MODEL_CONFIGS.clear()
             for model_name, model_config in models_config.items():
                 MODEL_CONFIGS[model_name] = ModelConfig(model_config)
         
@@ -135,6 +140,15 @@ def load_model_configs(model_config_path: str):
         logger.error(f"Error loading model configurations: {str(e)}")
         raise
 
+
+def refresh_model_configs() -> None:
+    """Reload model configurations from the last known path."""
+    if not _MODEL_CONFIG_PATH:
+        logger.error("Model config path is not set; cannot refresh.")
+        return
+    load_model_configs(_MODEL_CONFIG_PATH)
+
+
 def get_model_config(model_name: str) -> ModelConfig:
     """
     获取模型配置，如果指定的模型不存在或参数不匹配，返回默认模型配置
@@ -147,6 +161,7 @@ def get_model_config(model_name: str) -> ModelConfig:
     
     logger.warning(f"Model '{model_name}' not found, using default model '{DEFAULT_MODEL_NAME}'")
     return MODEL_CONFIGS[DEFAULT_MODEL_NAME]
+
 
 def get_default_model_name() -> str:
     """
