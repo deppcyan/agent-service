@@ -1,5 +1,5 @@
 {
   "appId": "agent-service",
-  "version": 0,
-  "remoteConfigUrl": ""
+  "version": 1,
+  "remoteConfigUrl": "https://digen-app-config.s3.us-west-1.amazonaws.com/agent-service/app.config"
 }
