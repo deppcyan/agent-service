@@ -10,6 +10,7 @@ import ReactFlow, {
   Position,
   Panel,
   ReactFlowProvider,
+  useReactFlow,
 } from 'reactflow';
 import type { 
   Edge, 
@@ -330,6 +331,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [currentWorkflowName, setCurrentWorkflowName] = useState<string | null>(null);
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const { screenToFlowPosition } = useReactFlow();
 
   // 计算节点的执行顺序
   const calculateNodeOrder = (nodes: Record<string, any>, connections: Connection[]) => {
@@ -690,10 +692,20 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
 
   // Handle adding new nodes
   const onNodeTypeSelect = useCallback((nodeType: NodeType) => {
+    // 计算屏幕中心位置对应的画布坐标
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    
+    // 将屏幕坐标转换为画布坐标
+    const flowPosition = screenToFlowPosition({ x: centerX, y: centerY });
+    
     const newNode: Node = {
       id: `${Date.now()}`,
       type: 'default',
-      position: { x: 100, y: 100 },
+      position: { 
+        x: flowPosition.x - 200, // 减去节点宽度的一半，让节点居中
+        y: flowPosition.y - 100  // 减去节点高度的一半，让节点居中
+      },
       data: {
         type: nodeType.name,
         width: 400,
@@ -714,7 +726,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
       },
     };
     setNodes(nodes => [...nodes, newNode]);
-  }, [setNodes]);
+  }, [setNodes, screenToFlowPosition]);
 
   // Handle edge click
   const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
@@ -888,6 +900,8 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Loose}
+          minZoom={0.1}
+          maxZoom={4}
           fitView
         >
           <Background color="#4b5563" gap={16} />
