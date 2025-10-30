@@ -41,7 +41,7 @@ app = FastAPI(lifespan=lifespan)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://192.168.0.238:5173"],  # 允许前端开发服务器的源
+    allow_origins=["*"],  # Allow any origin
     allow_credentials=True,
     allow_methods=["*"],  # 允许所有HTTP方法
     allow_headers=["*"],  # 允许所有headers
