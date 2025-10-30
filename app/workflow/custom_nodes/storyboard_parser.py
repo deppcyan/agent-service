@@ -12,14 +12,12 @@ class StoryboardParserNode(WorkflowNode):
         
         # Input ports
         self.add_input_port("text", "string", True)  # QwenVL response text (JSON format)
-        self.add_input_port("image_url", "string", False)  # Base image URL to be edited
         self.add_input_port("max_segments", "number", False, 3)  # Maximum number of segments/shots to process
         
         # Output ports
         self.add_output_port("prompts", "array")  # List of image prompts for each shot
         self.add_output_port("video_prompts", "array")  # List of video prompts for each shot
         self.add_output_port("dialogues", "array")  # List of dialogues for each shot
-        self.add_output_port("image_urls", "array")  # List of image URLs (duplicated for each shot)
         self.add_output_port("metadata", "object")  # Additional metadata like scene numbers, descriptions
     
     def _parse_shots(self, text: str) -> List[Dict[str, Any]]:
@@ -66,10 +64,8 @@ class StoryboardParserNode(WorkflowNode):
             raise ValueError("Required inputs are missing")
         
         text = self.input_values["text"]
-        image_url = self.input_values["image_url"]
         
         logger.info(f"StoryboardParser processing text input: {text[:200]}...")
-        logger.info(f"Using base image URL: {image_url}")
         
         shots = self._parse_shots(text)
         logger.info(f"Parsed {len(shots)} shots from input text")
@@ -80,8 +76,7 @@ class StoryboardParserNode(WorkflowNode):
         # Combine all dialogues in each shot into a single string
         dialogues = [shot["dialogue"] for shot in shots]
         # Duplicate the image_url for each shot
-        image_urls = [image_url] * len(shots)
-        
+        #         
         metadata = {
             "total_shots": len(shots)
         }
@@ -95,7 +90,6 @@ class StoryboardParserNode(WorkflowNode):
             "prompts": prompts,
             "video_prompts": video_prompts,
             "dialogues": dialogues,
-            "image_urls": image_urls,
             "metadata": metadata
         }
         return self.output_values

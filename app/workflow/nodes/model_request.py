@@ -460,7 +460,7 @@ class BatchModelRequestNode(WorkflowNode):
         super().__init__(node_id)
         
         # 输入端口
-        self.add_input_port("input_list", "array", True)  # 输入列表
+        self.add_input_port("input_list", "array", False)  # 输入列表
         self.add_input_port("options", "array", True)  # 选项列表
         
         # 输出端口
@@ -469,19 +469,24 @@ class BatchModelRequestNode(WorkflowNode):
     async def process(self) -> Dict[str, Any]:
         """整合输入和选项生成请求列表"""
         # 获取输入
-        input_list = self.input_values["input_list"]
-        options = self.input_values["options"]
+        input_list = self.input_values.get("input_list", [])
+        options = self.input_values["options"]  # options 是必需的
         
         # 验证输入类型
         if not isinstance(input_list, list) or not isinstance(options, list):
             raise ValueError("input_list和options必须是列表类型")
         
+        # 验证 options 不能为空
+        if not options:
+            raise ValueError("options不能为空")
+        
+        # 如果 input_list 为空，为每个 option 创建空输入
+        if not input_list:
+            input_list = [None] * len(options)
+        
         # 验证列表长度
         if len(input_list) != len(options):
             raise ValueError("input_list和options的长度必须相同")
-        
-        if not input_list or not options:
-            raise ValueError("input_list和options不能为空")
         
         # 生成请求列表
         requests = []
@@ -506,7 +511,7 @@ class ModelRequestNode(WorkflowNode):
         super().__init__(node_id)
         
         # 必需输入
-        self.add_input_port("input_list", "array", True)  # 来自 ModelRequestInputNode 或 ConcatModelRequestInputNode
+        self.add_input_port("input_list", "array", False)  # 来自 ModelRequestInputNode 或 ConcatModelRequestInputNode
         self.add_input_port("options", "object", True)  # 来自 ModelRequestOptionNode
         
         # 输出
@@ -515,8 +520,8 @@ class ModelRequestNode(WorkflowNode):
     async def process(self) -> Dict[str, Any]:
         """整合输入和选项生成请求数据"""
         request = {
-            "input": self.input_values["input_list"],
-            "options": self.input_values["options"]
+            "input": self.input_values.get("input_list", []),
+            "options": self.input_values.get("options")
         }
         
         return {"request": request}

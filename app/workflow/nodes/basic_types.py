@@ -92,3 +92,84 @@ class BoolInputNode(WorkflowNode):
         # Value should already be boolean due to port type,
         # but we'll ensure it explicitly
         return {"value": bool(value)}
+
+
+class IntToTextNode(WorkflowNode):
+    """Node that converts integer input to text output.
+    Useful for formatting numbers as strings in workflows."""
+    
+    category = "basic_types"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("value", "number", True, "Integer value to convert")
+        self.add_output_port("text", "string")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        value = self.input_values["value"]
+        
+        # Ensure value is an integer and convert to string
+        try:
+            int_value = int(value)
+            text_value = str(int_value)
+        except (ValueError, TypeError):
+            raise ValueError(f"Input value '{value}' cannot be converted to integer")
+            
+        return {"text": text_value}
+
+
+class FloatToTextNode(WorkflowNode):
+    """Node that converts float input to text output.
+    Useful for formatting decimal numbers as strings in workflows."""
+    
+    category = "basic_types"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("value", "number", True, "Float value to convert")
+        self.add_output_port("text", "string")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        value = self.input_values["value"]
+        
+        # Ensure value is a float and convert to string
+        try:
+            float_value = float(value)
+            text_value = str(float_value)
+        except (ValueError, TypeError):
+            raise ValueError(f"Input value '{value}' cannot be converted to float")
+            
+        return {"text": text_value}
+
+
+class TextStripNode(WorkflowNode):
+    """Node that strips whitespace and newlines from both ends of text.
+    Useful for cleaning up text input by removing leading and trailing spaces, tabs, and newlines."""
+    
+    category = "basic_types"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("text", "string", True, "Text to strip")
+        self.add_output_port("text", "string")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        text = self.input_values["text"]
+        
+        # Strip whitespace and newlines from both ends
+        if isinstance(text, str):
+            stripped_text = text.strip()
+        else:
+            # Convert to string first if not already a string, then strip
+            stripped_text = str(text).strip()
+            
+        return {"text": stripped_text}

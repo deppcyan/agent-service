@@ -25,6 +25,7 @@ class BatchModelServiceNode(IterativeNode):
         self.add_input_port("api_url", "string", True)  # API 端点
         self.add_input_port("callback_url", "string", True)  # 回调 URL
         self.add_input_port("cancel_url", "string", True)  # 取消 URL
+        self.add_input_port("timeout", "number", False)  # 超时时间（秒）
         
         # 输出端口
         self.add_output_port("local_urls", "array")  # 本地URL列表
@@ -52,7 +53,8 @@ class BatchModelServiceNode(IterativeNode):
             "request": request_data,  # 直接使用请求数据
             "api_url": self.input_values["api_url"],
             "callback_url": self.input_values["callback_url"],
-            "cancel_url": self.input_values["cancel_url"]
+            "cancel_url": self.input_values["cancel_url"],
+            "timeout": self.input_values.get("timeout")  # 超时时间（可选）
         }
         
         # 处理并返回结果
