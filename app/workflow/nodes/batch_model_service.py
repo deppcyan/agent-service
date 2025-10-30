@@ -92,7 +92,6 @@ class BatchModelServiceNode(IterativeNode):
             all_wasabi_urls.extend(r.get("wasabi_urls", []))
             all_aws_urls.extend(r.get("aws_urls", []))
             all_metadata.append({
-                "request": r.get("request"),  # 包含原始请求信息
                 "metadata": r.get("metadata", {})
             })
         
