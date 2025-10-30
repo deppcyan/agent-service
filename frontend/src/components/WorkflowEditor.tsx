@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -11,6 +11,7 @@ import ReactFlow, {
   Panel,
   ReactFlowProvider,
   useReactFlow,
+  useUpdateNodeInternals,
 } from 'reactflow';
 import type { 
   Edge, 
@@ -46,6 +47,26 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(id);
+  const [nodeTypeInfo, setNodeTypeInfo] = useState<NodeType | null>(null);
+  const updateNodeInternals = useUpdateNodeInternals();
+  
+  // 加载节点类型信息
+  useEffect(() => {
+    const loadNodeTypeInfo = async () => {
+      try {
+        const nodeTypes = await api.getNodeTypes();
+        const nodeType = nodeTypes.nodes.find(t => t.name === data.type);
+        setNodeTypeInfo(nodeType || null);
+        // 节点类型信息加载完成后，更新节点内部结构
+        updateNodeInternals(id);
+      } catch (error) {
+        console.error('Failed to get node types:', error);
+        setNodeTypeInfo(null);
+      }
+    };
+
+    loadNodeTypeInfo();
+  }, [data.type, id, updateNodeInternals]);
   
   // 处理双击节点
   const handleNodeDoubleClick = (e: React.MouseEvent) => {
@@ -99,27 +120,22 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
     const inputPorts: string[] = [];
     const outputPorts: string[] = [];
 
-      // 从节点类型定义中获取输入输出端口
-    api.getNodeTypes().then(nodeTypes => {
-      const nodeType = nodeTypes.nodes.find(t => t.name === data.type);
-      if (nodeType) {
-        // 从节点类型定义中获取输入端口
-        Object.keys(nodeType.input_ports).forEach(key => {
-          if (!inputPorts.includes(key)) {
-            inputPorts.push(key);
-          }
-        });
-        
-        // 从节点类型定义中获取输出端口
-        Object.keys(nodeType.output_ports).forEach(key => {
-          if (!outputPorts.includes(key)) {
-            outputPorts.push(key);
-          }
-        });
-      }
-    }).catch(error => {
-      console.error('Failed to get node types:', error);
-    });
+    // 从节点类型定义中获取输入输出端口
+    if (nodeTypeInfo) {
+      // 从节点类型定义中获取输入端口
+      Object.keys(nodeTypeInfo.input_ports).forEach(key => {
+        if (!inputPorts.includes(key)) {
+          inputPorts.push(key);
+        }
+      });
+      
+      // 从节点类型定义中获取输出端口
+      Object.keys(nodeTypeInfo.output_ports).forEach(key => {
+        if (!outputPorts.includes(key)) {
+          outputPorts.push(key);
+        }
+      });
+    }
 
     // 从现有的输入中添加端口
     if (data.inputs && typeof data.inputs === 'object') {
@@ -143,7 +159,12 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
     }
 
     return { inputPorts, outputPorts };
-  }, [data.type, data.inputs, data.outputs, data.connections]);
+  }, [nodeTypeInfo, data.inputs, data.outputs, data.connections, id]);
+
+  // 当端口发生变化时，更新节点内部结构
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [ports.inputPorts, ports.outputPorts, id, updateNodeInternals]);
 
   // 格式化值的显示
   const formatValue = (value: any): string => {
@@ -265,6 +286,7 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
                   type="target"
                   position={Position.Left}
                   id={port}
+                  isConnectable={true}
                   className={`w-2 h-2 ${isConnected ? '!bg-green-500' : '!bg-blue-500'}`}
                   style={{ top: '10px' }}
                 />
@@ -298,6 +320,7 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
                   type="source"
                   position={Position.Right}
                   id={port}
+                  isConnectable={true}
                   className={`w-2 h-2 ${isConnected ? '!bg-green-500' : '!bg-blue-500'}`}
                   style={{ top: '10px' }}
                 />
