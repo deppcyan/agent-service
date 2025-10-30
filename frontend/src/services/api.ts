@@ -126,4 +126,13 @@ export const api = {
     });
     return response.data;
   },
+
+  async deleteWorkflow(name: string): Promise<{ status: string; message: string }> {
+    const response = await axios.delete(`${API_BASE_URL}/${name}`, {
+      headers: {
+        'x-api-key': API_KEY
+      }
+    });
+    return response.data;
+  },
 };

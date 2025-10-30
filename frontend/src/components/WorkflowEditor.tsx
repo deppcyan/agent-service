@@ -608,33 +608,84 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   // 处理连接变化
   const onConnect = useCallback(
     (params: ReactFlowConnection) => {
+      // 添加边
       setEdges((eds) => addEdge(params, eds));
+      
+      // 更新节点数据中的connections数组
+      const newConnection: Connection = {
+        from_node: params.source!,
+        from_port: params.sourceHandle!,
+        to_node: params.target!,
+        to_port: params.targetHandle!,
+      };
+      
+      setNodes(nodes => nodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          connections: [
+            ...(node.data.connections || []),
+            newConnection
+          ]
+        }
+      })));
     },
-    [setEdges]
+    [setEdges, setNodes]
   );
 
   // 处理节点ID变更后更新相关连接
   const updateEdgesAfterNodeIdChange = useCallback(
     (oldId: string, newId: string) => {
+      // 更新边的连接信息
       setEdges(edges => edges.map(edge => ({
         ...edge,
         source: edge.source === oldId ? newId : edge.source,
         target: edge.target === oldId ? newId : edge.target
       })));
+      
+      // 更新所有节点数据中的connections数组
+      setNodes(nodes => nodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          connections: node.data.connections?.map((conn: Connection) => ({
+            ...conn,
+            from_node: conn.from_node === oldId ? newId : conn.from_node,
+            to_node: conn.to_node === oldId ? newId : conn.to_node
+          })) || []
+        }
+      })));
     },
-    [setEdges]
+    [setEdges, setNodes]
   );
 
   // Handle node deletion
   const onNodesDelete: OnNodesDelete = useCallback(
     (nodesToDelete) => {
-      // Remove all edges connected to deleted nodes
       const nodeIds = new Set(nodesToDelete.map(node => node.id));
+      
+      // Remove all edges connected to deleted nodes
       setEdges(edges.filter(edge => 
         !nodeIds.has(edge.source) && !nodeIds.has(edge.target)
       ));
+      
+      // Remove connections from remaining nodes' data
+      setNodes(nodes => nodes.map(node => {
+        if (nodeIds.has(node.id)) {
+          return node; // 被删除的节点不需要处理
+        }
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            connections: (node.data.connections || []).filter((conn: Connection) => 
+              !nodeIds.has(conn.from_node) && !nodeIds.has(conn.to_node)
+            )
+          }
+        };
+      }));
     },
-    [edges, setEdges]
+    [edges, setEdges, setNodes]
   );
 
   // Handle adding new nodes
@@ -692,10 +743,31 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
 
   // Handle edge deletion
   const onEdgeDelete = useCallback((edgeId: string) => {
+    // 找到要删除的边
+    const edgeToDelete = edges.find(e => e.id === edgeId);
+    
+    // 从边列表中删除
     setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+    
+    // 从节点数据的connections数组中删除对应的连接
+    if (edgeToDelete) {
+      setNodes(nodes => nodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          connections: (node.data.connections || []).filter((conn: Connection) => 
+            !(conn.from_node === edgeToDelete.source && 
+              conn.from_port === edgeToDelete.sourceHandle &&
+              conn.to_node === edgeToDelete.target && 
+              conn.to_port === edgeToDelete.targetHandle)
+          )
+        }
+      })));
+    }
+    
     setContextMenu(null);
     setSelectedEdge(null);
-  }, [setEdges]);
+  }, [setEdges, setNodes, edges]);
 
   // Handle background click to close context menu
   const onPaneClick = useCallback(() => {

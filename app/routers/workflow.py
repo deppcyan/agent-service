@@ -132,7 +132,8 @@ async def get_available_nodes():
         # 检查节点类的模块路径
         module_path = inspect.getmodule(node_class).__name__
         # 只处理 app/workflow/nodes 和 custom_nodes 目录下的节点
-        if not (module_path.startswith('nodes.') or module_path.startswith('custom_nodes.')):
+        if not (module_path.startswith('nodes.') or module_path.startswith('custom_nodes.') or
+        module_path.startswith("app.workflow.nodes") or module_path.startswith("app.workflow.custom_nodes")):
             logger.debug(f"Skipping node {node_name} from module {module_path}")
             continue
             
@@ -295,4 +296,31 @@ async def save_workflow(
         }
     except Exception as e:
         logger.error(f"Error saving workflow {workflow_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{workflow_name}")
+async def delete_workflow(
+    workflow_name: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """Delete a specific workflow by name"""
+    try:
+        # Sanitize workflow name
+        workflow_name = workflow_name.replace("/", "_").replace("\\", "_")
+        workflow_path = WORKFLOW_DIR / f"{workflow_name}.json"
+        
+        if not workflow_path.exists():
+            raise HTTPException(status_code=404, detail=f"Workflow '{workflow_name}' not found")
+            
+        # Delete the workflow file
+        workflow_path.unlink()
+        
+        return {
+            "status": "success",
+            "message": f"Workflow '{workflow_name}' deleted successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting workflow {workflow_name}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
