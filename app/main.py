@@ -23,8 +23,8 @@ async def lifespan(app: FastAPI):
     # Initialize service URL
     init_service_url()
     
-    # Register in-memory config refreshers
-    config_manager.register_refresher(refresh_model_configs)
+    # Register file-specific config refreshers
+    config_manager.register_file_refresher("config/model.json", refresh_model_configs)
 
     # Load model configurations (local first)
     load_model_configs("config/model.json")

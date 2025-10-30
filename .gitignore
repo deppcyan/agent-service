@@ -2,4 +2,4 @@
 __pycache__/
 log/
 user/
-config/update.json
+update/
