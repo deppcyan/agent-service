@@ -67,5 +67,5 @@ app.include_router(config_router.router)
 
 if __name__ == "__main__":
     import uvicorn
-    # port改了，webhook端口也需要改
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    port = int(os.getenv('DIGEN_SERVICE_PORT', '8000'))
+    uvicorn.run(app, host="0.0.0.0", port=port)

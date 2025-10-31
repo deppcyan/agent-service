@@ -156,7 +156,7 @@ class TextStripNode(WorkflowNode):
     """Node that strips whitespace and newlines from both ends of text.
     Useful for cleaning up text input by removing leading and trailing spaces, tabs, and newlines."""
     
-    category = "basic_types"
+    category = "text_process"
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)

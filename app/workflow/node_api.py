@@ -61,7 +61,7 @@ class AsyncDigenAPINode(BaseDigenAPINode):
         # Add callback-related input ports
         # callback_url is now automatically set from get_service_url()
         # cancel_url is now automatically constructed from response pod_url
-        self.add_input_port("timeout", "number", False)
+        self.add_input_port("timeout", "number", False, default_value=60)
         
         # Initialize cancel_url variable
         self.cancel_url = None

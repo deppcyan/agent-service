@@ -17,11 +17,13 @@ class BatchModelServiceNode(IterativeNode):
     4. 合并所有结果
     """
     
+    category = "digen_services"
+    
     def __init__(self, node_id: Optional[str] = None):
         super().__init__(node_id)
         
         # 基本配置
-        self.add_input_port("model", "string", True, options=["flux", "qwen-edit", "qwen-image", "wan-talk", "wan-i2v", "concat-upscale", "concat-upscale-audio", "qwen-edit-fp8"])  # 模型名称
+        self.add_input_port("model", "string", True, options=["flux", "qwen-edit", "qwen-image", "wan-talk", "wan-i2v", "concat-upscale", "concat-upscale-audio", "qwen-edit-fp8", "qwen-edit-nextsence"])  # 模型名称
         self.add_input_port("api_url", "string", True)  # API 端点
         self.add_input_port("timeout", "number", False)  # 超时时间（秒）
         
