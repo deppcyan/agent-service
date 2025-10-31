@@ -151,3 +151,100 @@ class LoadTextFromFileNode(WorkflowNode):
             raise ValueError(f"File encoding error: {str(e)}")
         except Exception as e:
             raise Exception(f"Error loading text from file: {str(e)}")
+
+class TextStripNode(WorkflowNode):
+    """Node that strips whitespace and newlines from both ends of text.
+    Useful for cleaning up text input by removing leading and trailing spaces, tabs, and newlines."""
+    
+    category = "basic_types"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("text", "string", True, "Text to strip")
+        self.add_output_port("text", "string")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        text = self.input_values["text"]
+        
+        # Strip whitespace and newlines from both ends
+        if isinstance(text, str):
+            stripped_text = text.strip()
+        else:
+            # Convert to string first if not already a string, then strip
+            stripped_text = str(text).strip()
+            
+        return {"text": stripped_text}
+
+
+class TextRemoveEmptyLinesNode(WorkflowNode):
+    """Node that removes empty lines and lines containing only whitespace from text.
+    Useful for cleaning up text by removing blank lines while preserving content structure."""
+    
+    category = "text_process"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("text", "string", True, "Text to clean up")
+        self.add_output_port("text", "string")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        text = self.input_values["text"]
+        
+        if not isinstance(text, str):
+            text = str(text)
+        
+        # Split into lines, filter out empty/whitespace-only lines, then rejoin
+        lines = text.split('\n')
+        non_empty_lines = [line for line in lines if line.strip()]
+        cleaned_text = '\n'.join(non_empty_lines)
+            
+        return {"text": cleaned_text}
+
+
+class TextSplitNode(WorkflowNode):
+    """Node that splits text using a specified delimiter.
+    Returns an array of text segments split by the delimiter."""
+    
+    category = "text_process"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("text", "string", True, "Text to split")
+        self.add_input_port("delimiter", "string", False, "Delimiter to split by (default: \\n)")
+        self.add_input_port("max_splits", "number", False, "Maximum number of splits (default: unlimited)")
+        self.add_output_port("segments", "array")
+        self.add_output_port("count", "number")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        text = self.input_values["text"]
+        delimiter = self.input_values.get("delimiter", "\n")
+        max_splits = self.input_values.get("max_splits")
+        
+        if not isinstance(text, str):
+            text = str(text)
+        
+        # Handle common escape sequences
+        delimiter = delimiter.replace("\\n", "\n").replace("\\t", "\t").replace("\\r", "\r")
+        
+        # Split the text
+        if max_splits is not None:
+            max_splits = int(max_splits)
+            if max_splits < 0:
+                raise ValueError("max_splits must be non-negative")
+            segments = text.split(delimiter, max_splits)
+        else:
+            segments = text.split(delimiter)
+            
+        return {
+            "segments": segments,
+            "count": len(segments)
+        }

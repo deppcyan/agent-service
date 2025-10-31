@@ -88,6 +88,7 @@ class NodePortInfo(BaseModel):
     port_type: str = Field(..., description="Port data type")
     required: bool = Field(True, description="Whether the port is required")
     default_value: Optional[Any] = Field(None, description="Default value for the port")
+    options: Optional[List[Any]] = Field(None, description="List of selectable options for the port")
 
 class NodeInfo(BaseModel):
     name: str = Field(..., description="Node type name")

@@ -89,7 +89,38 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                   {key}
                   {!port.required && ' (optional)'}
                 </label>
-                {port.port_type === 'string' ? (
+                {port.options && port.options.length > 0 ? (
+                  <div>
+                    <select
+                      value={inputValues[key] || ''}
+                      onChange={(e) => setInputValues({
+                        ...inputValues,
+                        [key]: e.target.value
+                      })}
+                      className={inputClasses}
+                    >
+                      <option value="">Select {key}</option>
+                      {port.options.map((option, index) => (
+                        <option key={index} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="mt-2">
+                      <label className="block text-xs text-gray-400 mb-1">Or enter custom value:</label>
+                      <input
+                        type="text"
+                        value={inputValues[key] || ''}
+                        onChange={(e) => setInputValues({
+                          ...inputValues,
+                          [key]: e.target.value
+                        })}
+                        className={inputClasses}
+                        placeholder={`Enter custom ${key}`}
+                      />
+                    </div>
+                  </div>
+                ) : port.port_type === 'string' ? (
                   <input
                     type="text"
                     value={inputValues[key] || ''}

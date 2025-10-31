@@ -13,6 +13,7 @@ export interface NodePort {
   port_type: string;
   required: boolean;
   default_value?: any;
+  options?: any[];
 }
 
 export interface NodeType {

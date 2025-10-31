@@ -9,6 +9,7 @@ class NodePort:
     port_type: str
     required: bool = True
     default_value: Any = None
+    options: Optional[List[Any]] = None  # 候选值列表，前端可从中选择
 
 class WorkflowNode:
     """Base class for all workflow nodes"""
@@ -20,9 +21,9 @@ class WorkflowNode:
         self.input_values: Dict[str, Any] = {}
         self.output_values: Dict[str, Any] = {}
     
-    def add_input_port(self, name: str, port_type: str, required: bool = True, default_value: Any = None):
+    def add_input_port(self, name: str, port_type: str, required: bool = True, default_value: Any = None, options: Optional[List[Any]] = None):
         """Add an input port to the node"""
-        self.input_ports[name] = NodePort(name, port_type, required, default_value)
+        self.input_ports[name] = NodePort(name, port_type, required, default_value, options)
     
     def add_output_port(self, name: str, port_type: str):
         """Add an output port to the node"""

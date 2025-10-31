@@ -18,7 +18,7 @@ class ModelServiceNode(AsyncDigenAPINode):
         super().__init__("model-service", node_id)
         
         # 输入端口
-        self.add_input_port("model", "string", True)  # 模型名称/标识符
+        self.add_input_port("model", "string", True, options=["flux", "qwen-edit", "qwen-image", "wan-talk", "wan-i2v", "concat-upscale", "concat-upscale-audio", "qwen-edit-fp8"])  # 模型名称/标识符
         self.add_input_port("request", "object", True)  # 请求数据
         
         # Output ports

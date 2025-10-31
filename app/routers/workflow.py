@@ -150,7 +150,8 @@ async def get_available_nodes():
                         name=port.name,
                         port_type=port.port_type,
                         required=port.required,
-                        default_value=port.default_value
+                        default_value=port.default_value,
+                        options=port.options
                     )
                     for name, port in node.input_ports.items()
                 }
@@ -175,7 +176,8 @@ async def get_available_nodes():
                             name=name,
                             port_type=port.get('type', 'any'),
                             required=port.get('required', True),
-                            default_value=port.get('default', None)
+                            default_value=port.get('default', None),
+                            options=port.get('options', None)
                         )
                         for name, port in node_class.INPUT_PORTS.items()
                     }
@@ -202,7 +204,8 @@ async def get_available_nodes():
                             "name": port.name,
                             "port_type": port.port_type,
                             "required": port.required,
-                            "default_value": port.default_value
+                            "default_value": port.default_value,
+                            "options": port.options
                         }
                         for name, port in input_ports.items()
                     },
