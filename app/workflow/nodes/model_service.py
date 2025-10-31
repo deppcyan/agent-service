@@ -39,7 +39,7 @@ class ModelServiceNode(AsyncDigenAPINode):
             "model": model,
             "input": request_data["input"],
             "options": request_data["options"],
-            "webhookUrl": input_data.get("callback_url")
+            "webhookUrl": self.get_callback_url()
         }
         
         logger.debug(f"准备发送请求到模型 {model}: {request}")

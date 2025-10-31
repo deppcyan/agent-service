@@ -5,7 +5,6 @@
             "inputs": {
                 "api_url": "http://192.168.0.238:8000/v1/generate",
                 "timeout": 300,
-                "callback_url": "http://192.168.0.238:8001/webhook",
                 "image_urls": [],
                 "audio_urls": ["https://watermarked-vidoes.s3.us-west-1.amazonaws.com/zh-Bowen_man.wav"],
                 "prompts": [],
@@ -41,7 +40,6 @@
             "inputs": {
                 "api_url": "http://192.168.0.238:8000/v1/generate",
                 "timeout": 300,
-                "callback_url": "http://192.168.0.238:8001/webhook",
                 "image_urls": [],
                 "prompts": [],
                 "width": 360,
@@ -53,7 +51,6 @@
             "inputs": {
                 "api_url": "http://192.168.0.238:8000/v1/generate",
                 "timeout": 300,
-                "callback_url": "http://192.168.0.238:8001/webhook",
                 "video_urls": [],
                 "fps": 25,
                 "audio_support": true

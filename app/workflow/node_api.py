@@ -6,6 +6,7 @@ from asyncio import CancelledError
 from app.workflow.base import WorkflowNode
 from app.utils.logger import logger
 from app.core.callback_manager import callback_manager
+from app.utils.utils import get_service_url
 import json
 
 class BaseDigenAPINode(WorkflowNode, ABC):
@@ -58,13 +59,18 @@ class AsyncDigenAPINode(BaseDigenAPINode):
     def __init__(self, service_name: str, node_id: str = None):
         super().__init__(service_name, node_id)
         # Add callback-related input ports
-        self.add_input_port("callback_url", "string", True)
+        # callback_url is now automatically set from get_service_url()
         self.add_input_port("cancel_url", "string", False)  # Optional, will use default if not provided
         self.add_input_port("timeout", "number", False)
+    
+    def get_callback_url(self) -> str:
+        """Get the callback URL for this node"""
+        return f"{get_service_url()}/webhook"
          
     def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare request data with callback URL.
         Must be implemented by child classes to include callback URL in request data.
+        Use self.get_callback_url() to get the automatically generated callback URL.
         
         Args:
             input_data: Node input values
@@ -107,9 +113,10 @@ class AsyncDigenAPINode(BaseDigenAPINode):
         if not self.validate_inputs():
             raise ValueError("Required inputs missing")
             
-        # Get callback URL and timeout
+        # Get timeout (callback URL is now automatically generated)
         timeout = self.input_values.get("timeout")
         logger.info(f"{self.service_name}: Using timeout value: {timeout} seconds")
+        logger.info(f"{self.service_name}: Using callback URL: {self.get_callback_url()}")
         
         try:
             # Prepare request data
