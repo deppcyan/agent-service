@@ -60,8 +60,11 @@ class AsyncDigenAPINode(BaseDigenAPINode):
         super().__init__(service_name, node_id)
         # Add callback-related input ports
         # callback_url is now automatically set from get_service_url()
-        self.add_input_port("cancel_url", "string", False)  # Optional, will use default if not provided
+        # cancel_url is now automatically constructed from response pod_url
         self.add_input_port("timeout", "number", False)
+        
+        # Initialize cancel_url variable
+        self.cancel_url = None
     
     def get_callback_url(self) -> str:
         """Get the callback URL for this node"""
@@ -95,9 +98,12 @@ class AsyncDigenAPINode(BaseDigenAPINode):
     async def _cancel_job(self, job_id: str) -> None:
         """Cancel a running job by making a request to the cancel URL"""
         
-        # Remove trailing slash if present and format the cancel URL
-        base_url = self.input_values['cancel_url'].rstrip('/')
-        cancel_url = f"{base_url}/{job_id}"
+        # Only cancel if we have a cancel URL from the response
+        if not hasattr(self, 'cancel_url') or not self.cancel_url:
+            logger.info(f"{self.service_name}: No cancel URL available, cannot cancel job {job_id}")
+            raise CancelledError()
+        
+        cancel_url = f"{self.cancel_url}/{job_id}"
         
         try:
             await self._make_request({"job_id": job_id}, method="POST", url=cancel_url)
@@ -130,6 +136,16 @@ class AsyncDigenAPINode(BaseDigenAPINode):
             if not response.get("id"):
                 raise ValueError("No job id returned from service")
             job_id = response["id"]
+            
+            # Extract pod_url from response and construct cancel URL
+            if response.get("pod_url"):
+                pod_url = response["pod_url"].rstrip('/')
+                self.cancel_url = f"{pod_url}/cancel"
+                logger.info(f"{self.service_name}: Using cancel URL: {self.cancel_url}")
+            else:
+                # No pod_url in response means no cancellation capability
+                self.cancel_url = None
+                logger.info(f"{self.service_name}: No pod_url in response, cancellation not available")
             
             callback_manager.register_handler(
                 job_id,
