@@ -33,7 +33,17 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
       try {
         const status = await api.getWorkflowStatus(taskId);
         if (mounted) {
-          setResult(status);
+          setResult(prevResult => {
+            // If we have an error status, preserve previous results but update status and error
+            if (status.status === 'error') {
+              return {
+                ...status,
+                result: prevResult?.result || status.result || {}
+              };
+            }
+            // For other statuses, use the new result normally
+            return status;
+          });
         }
         
         // Stop polling if workflow is complete or failed
@@ -124,14 +134,34 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
               </div>
 
               {result.error && (
-                <div className="text-red-600 mb-4">
-                  Error: {result.error}
+                <div className="bg-red-900/50 border border-red-700 text-red-400 px-4 py-3 rounded mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span className="font-semibold">Workflow Error</span>
+                  </div>
+                  <div className="text-sm">{result.error}</div>
+                  {Object.keys(result.result || {}).length > 0 && (
+                    <div className="mt-2 text-xs text-red-300">
+                      ℹ️ Previous node results are preserved below for analysis
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Display all result data in a structured way */}
+              {Object.entries(result.result || {}).length > 0 && result.status === 'error' && (
+                <div className="mb-4 bg-yellow-900/20 border border-yellow-700 text-yellow-400 px-4 py-2 rounded text-sm">
+                  📋 Results from completed nodes (before error occurred):
+                </div>
+              )}
               {Object.entries(result.result || {}).map(([key, value]) => (
-                <div key={key} className="mb-6 border border-gray-700 rounded-lg p-4 hover:shadow-lg transition-shadow bg-gray-800/50">
+                <div key={key} className={`mb-6 border rounded-lg p-4 hover:shadow-lg transition-shadow ${
+                  result.status === 'error' 
+                    ? 'border-yellow-600 bg-yellow-900/10' 
+                    : 'border-gray-700 bg-gray-800/50'
+                }`}>
                   <h3 className="font-semibold text-lg mb-3 text-gray-200">{key}</h3>
                   {typeof value === 'object' ? (
                     <div className="space-y-3">
