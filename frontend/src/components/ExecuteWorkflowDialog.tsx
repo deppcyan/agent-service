@@ -77,6 +77,29 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
     }
   };
 
+  // Handle dialog close - cancel task if still running
+  const handleClose = async () => {
+    if (result?.status === 'running' && !isCancelling) {
+      const confirmed = window.confirm(
+        'The workflow is still running. Do you want to cancel it and close the dialog?'
+      );
+      
+      if (confirmed) {
+        try {
+          setIsCancelling(true);
+          await onCancel();
+        } catch (e) {
+          console.error('Failed to cancel workflow on close:', e);
+        }
+        onClose();
+      }
+      // If not confirmed, do nothing (keep dialog open)
+    } else {
+      // If not running or already cancelling, close normally
+      onClose();
+    }
+  };
+
   // Extract only local_urls from results
   const extractUrls = (obj: any): string[] => {
     if (!obj) return [];
@@ -105,7 +128,7 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
         <div className="flex justify-between items-center mb-4 flex-shrink-0">
           <h2 className="text-2xl font-bold text-gray-200">Workflow Execution</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-200 text-xl"
           >
             ✕
