@@ -127,62 +127,6 @@ class ConcatModelRequestInputNode(WorkflowNode):
         
         return {"input_list": combined_list}
 
-class ModelRequestOptionNode(WorkflowNode):
-    """模型请求选项节点
-    
-    用于配置模型运行的各种参数选项，包括：
-    1. 基础选项：提示词、图像尺寸等
-    2. 高级选项：批处理大小、随机种子等
-    3. 扩展选项：模型特定的额外参数
-    """
-    
-    category = "model-request"
-    
-    def __init__(self, node_id: str = None):
-        super().__init__(node_id)
-        
-        # 基础选项
-        self.add_input_port("prompt", "string", False, "")
-        self.add_input_port("audio_prompt", "string", False, "")
-        self.add_input_port("negative_prompt", "string", False, "")
-        self.add_input_port("width", "number", False, 768)
-        self.add_input_port("height", "number", False, 768)
-        
-        # 高级选项
-        self.add_input_port("batch_size", "number", False, 1)
-        self.add_input_port("seed", "number", False, None)
-        self.add_input_port("output_format", "string", False, None)
-        
-        # 扩展选项
-        self.add_input_port("extra_options", "object", False, {})
-        
-        # 输出
-        self.add_output_port("options", "object")
-    
-    async def process(self) -> Dict[str, Any]:
-        """处理并合并所有选项"""
-        # 收集基础选项
-        options = {
-            "prompt": self.input_values.get("prompt", ""),
-            "audio_prompt": self.input_values.get("audio_prompt", ""),
-            "negative_prompt": self.input_values.get("negative_prompt", ""),
-            "width": self.input_values.get("width", 768),
-            "height": self.input_values.get("height", 768),
-            "batch_size": self.input_values.get("batch_size", 1)
-        }
-        
-        # 添加可选参数
-        if self.input_values.get("seed") is not None:
-            options["seed"] = self.input_values["seed"]
-            
-        if self.input_values.get("output_format"):
-            options["output_format"] = self.input_values["output_format"]
-        
-        # 合并扩展选项
-        extra_options = self.input_values.get("extra_options", {})
-        options.update(extra_options)
-        
-        return {"options": options}
 
 class BatchModelRequestInputNode(WorkflowNode):
     """批量模型请求输入节点
@@ -306,14 +250,17 @@ class ConcatBatchModelRequestInputNode(WorkflowNode):
         
         return {"input_list": merged_list}
 
-class BatchModelRequestOptionNode(WorkflowNode):
-    """批量模型请求选项节点
+
+class BatchModelRequestNode(WorkflowNode):
+    """批量模型请求节点
     
-    用于处理批量的提示词输入，生成多个选项配置。
+    整合批量输入数据和选项配置，生成多个完整的模型请求配置。
+    包含了原BatchModelRequestOptionNode的功能。
     prompts、audio_prompts、negative_prompts可以是列表或空，但如果提供了多个，它们的长度必须相同。
     其他参数保持单一值。
     
     输入:
+    - input_list: 输入列表，每个元素是一个子列表 (来自BatchModelRequestInputNode或ConcatBatchModelRequestInputNode)
     - prompts: 提示词列表 (可选)
     - audio_prompts: 音频提示词列表 (可选)
     - negative_prompts: 负面提示词列表 (可选)
@@ -325,13 +272,16 @@ class BatchModelRequestOptionNode(WorkflowNode):
     - extra_options: 扩展选项 (可选)
     
     输出:
-    - options: 选项配置列表
+    - requests: 请求配置列表，每个元素包含对应的输入和选项
     """
     
     category = "model-request"
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
+        
+        # 输入数据
+        self.add_input_port("input_list", "array", False)  # 输入列表
         
         # 批量提示词输入
         self.add_input_port("prompts", "array", False, [])  # 提示词列表
@@ -350,8 +300,8 @@ class BatchModelRequestOptionNode(WorkflowNode):
         # 扩展选项
         self.add_input_port("extra_options", "object", False, {})
         
-        # 输出
-        self.add_output_port("options", "array")
+        # 输出端口
+        self.add_output_port("requests", "array")
     
     def _validate_prompt_lists(self, prompts: List[str], audio_prompts: List[str], negative_prompts: List[str]) -> int:
         """验证提示词列表
@@ -387,8 +337,8 @@ class BatchModelRequestOptionNode(WorkflowNode):
         
         return lengths[0]
     
-    async def process(self) -> Dict[str, Any]:
-        """处理输入并生成选项列表"""
+    def _build_options_list(self) -> List[Dict[str, Any]]:
+        """构建选项配置列表"""
         # 获取提示词列表
         prompts = self.input_values.get("prompts", [])
         audio_prompts = self.input_values.get("audio_prompts", [])
@@ -438,43 +388,19 @@ class BatchModelRequestOptionNode(WorkflowNode):
             
             options_list.append(options)
         
-        return {"options": options_list}
-
-class BatchModelRequestNode(WorkflowNode):
-    """批量模型请求节点
-    
-    整合批量输入数据和选项配置，生成多个完整的模型请求配置。
-    要求input_list和options的长度必须相同。
-    
-    输入:
-    - input_list: 输入列表，每个元素是一个子列表 (来自BatchModelRequestInputNode或ConcatBatchModelRequestInputNode)
-    - options: 选项列表 (来自BatchModelRequestOptionNode)
-    
-    输出:
-    - requests: 请求配置列表，每个元素包含对应的输入和选项
-    """
-    
-    category = "model-request"
-    
-    def __init__(self, node_id: str = None):
-        super().__init__(node_id)
-        
-        # 输入端口
-        self.add_input_port("input_list", "array", False)  # 输入列表
-        self.add_input_port("options", "array", True)  # 选项列表
-        
-        # 输出端口
-        self.add_output_port("requests", "array")
+        return options_list
     
     async def process(self) -> Dict[str, Any]:
         """整合输入和选项生成请求列表"""
         # 获取输入
         input_list = self.input_values.get("input_list", [])
-        options = self.input_values["options"]  # options 是必需的
+        
+        # 构建选项列表
+        options = self._build_options_list()
         
         # 验证输入类型
-        if not isinstance(input_list, list) or not isinstance(options, list):
-            raise ValueError("input_list和options必须是列表类型")
+        if not isinstance(input_list, list):
+            raise ValueError("input_list必须是列表类型")
         
         # 验证 options 不能为空
         if not options:
@@ -503,6 +429,7 @@ class ModelRequestNode(WorkflowNode):
     """模型请求节点
     
     整合输入数据和选项配置，生成完整的模型请求配置。
+    包含了原ModelRequestOptionNode的功能。
     """
     
     category = "model-request"
@@ -510,18 +437,57 @@ class ModelRequestNode(WorkflowNode):
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
         
-        # 必需输入
+        # 输入数据
         self.add_input_port("input_list", "array", False)  # 来自 ModelRequestInputNode 或 ConcatModelRequestInputNode
-        self.add_input_port("options", "object", True)  # 来自 ModelRequestOptionNode
+        
+        # 基础选项
+        self.add_input_port("prompt", "string", False, "")
+        self.add_input_port("audio_prompt", "string", False, "")
+        self.add_input_port("negative_prompt", "string", False, "")
+        self.add_input_port("width", "number", False, 768)
+        self.add_input_port("height", "number", False, 768)
+        
+        # 高级选项
+        self.add_input_port("batch_size", "number", False, 1)
+        self.add_input_port("seed", "number", False, None)
+        self.add_input_port("output_format", "string", False, None)
+        
+        # 扩展选项
+        self.add_input_port("extra_options", "object", False, {})
         
         # 输出
         self.add_output_port("request", "object")  # 完整的请求数据
+    
+    def _build_options(self) -> Dict[str, Any]:
+        """构建选项配置"""
+        # 收集基础选项
+        options = {
+            "prompt": self.input_values.get("prompt", ""),
+            "audio_prompt": self.input_values.get("audio_prompt", ""),
+            "negative_prompt": self.input_values.get("negative_prompt", ""),
+            "width": self.input_values.get("width", 768),
+            "height": self.input_values.get("height", 768),
+            "batch_size": self.input_values.get("batch_size", 1)
+        }
+        
+        # 添加可选参数
+        if self.input_values.get("seed") is not None:
+            options["seed"] = self.input_values["seed"]
+            
+        if self.input_values.get("output_format"):
+            options["output_format"] = self.input_values["output_format"]
+        
+        # 合并扩展选项
+        extra_options = self.input_values.get("extra_options", {})
+        options.update(extra_options)
+        
+        return options
     
     async def process(self) -> Dict[str, Any]:
         """整合输入和选项生成请求数据"""
         request = {
             "input": self.input_values.get("input_list", []),
-            "options": self.input_values.get("options")
+            "options": self._build_options()
         }
         
         return {"request": request}
