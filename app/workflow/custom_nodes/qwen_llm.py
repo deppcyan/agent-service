@@ -14,7 +14,7 @@ class QwenLLMNode(SyncDigenAPINode):
         self.add_input_port("max_tokens", "number", False, 256)
         self.add_input_port("temperature", "number", False, 0.7)
         self.add_input_port("top_p", "number", False, 0.9)
-        self.add_input_port("model", "string", False, "Qwen3-30B-A3B-Instruct-2507-FP4")
+        self.add_input_port("model", "string", False, "Qwen3-30B-A3B-Instruct-2507-FP4", options=["DeepSeek-R1-0528-Qwen3-8B-abliterated", "Qwen3-30B-A3B-Instruct-2507-FP4"])
         
         # Output ports
         self.add_output_port("content", "string")
@@ -58,6 +58,18 @@ class QwenLLMNode(SyncDigenAPINode):
             
         message = choices[0].get("message", {})
         content = message.get("content", "")
+        
+        # Remove thinking mode content before </think>\n
+        if "</think>" in content:
+            # Find the position of </think> and remove everything before it including </think>\n
+            think_end = content.find("</think>")
+            if think_end != -1:
+                # Look for the newline after </think>
+                after_think = content[think_end + len("</think>"):]
+                if after_think.startswith("\n"):
+                    content = after_think[1:]  # Remove the newline as well
+                else:
+                    content = after_think
         
         return {
             "status": "completed",

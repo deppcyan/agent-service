@@ -37,6 +37,8 @@ class APIURLConfig:
             with open(config_path, 'r', encoding='utf-8') as f:
                 self._config_data = json.load(f)
             
+            current_env = self.get_environment()
+            logger.info(f"当前环境: {current_env}")
             logger.info(f"API URL配置已加载: {config_path}")
             
         except FileNotFoundError:
@@ -56,7 +58,6 @@ class APIURLConfig:
             环境名称，默认为'prod'
         """
         env = os.getenv("DIGEN_SERVICE_ENV", "prod").lower()
-        logger.debug(f"当前环境: {env}")
         return env
     
     def get_api_url(self, service_name: str) -> Optional[str]:
