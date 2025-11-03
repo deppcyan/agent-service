@@ -19,8 +19,8 @@ class ModelServiceNode(AsyncDigenAPINode):
         # 使用一个占位符service_name，实际的service_name将从输入中获取
         super().__init__("model-service", node_id)
         
-        # 输入端口 - 从配置文件动态获取模型选项
-        model_options = api_url_config.get_all_model_names()
+        # 输入端口 - 只显示comfy分组的模型选项
+        model_options = api_url_config.get_group_model_names("comfy")
         self.add_input_port("model", "string", True, options=model_options)  # 模型名称/标识符
         self.add_input_port("request", "object", True)  # 请求数据
         

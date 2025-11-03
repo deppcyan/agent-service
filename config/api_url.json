@@ -1,35 +1,53 @@
 {
     "dev": {
-        "flux": "https://dev-api.digen.ai/flux",
-        "qwen-edit": "https://dev-api.digen.ai/qwen-edit",
-        "qwen-image": "https://dev-api.digen.ai/qwen-image",
-        "wan-talk": "https://dev-api.digen.ai/wan-talk",
-        "wan-i2v": "https://dev-api.digen.ai/wan-i2v",
-        "concat-upscale": "https://dev-api.digen.ai/concat-upscale",
-        "concat-upscale-audio": "https://dev-api.digen.ai/concat-upscale-audio",
-        "qwen-edit-fp8": "https://dev-api.digen.ai/qwen-edit-fp8",
-        "qwen-edit-nextsence": "https://dev-api.digen.ai/qwen-edit-nextsence"
+        "comfy": {
+            "flux": "http://192.168.0.238:8000/v1/generate",
+            "qwen-edit": "http://192.168.0.238:8000/v1/generate",
+            "qwen-image": "http://192.168.0.238:8000/v1/generate",
+            "wan-talk": "http://192.168.0.238:8000/v1/generate",
+            "wan-i2v": "http://192.168.0.238:8000/v1/generate",
+            "concat-upscale": "http://192.168.0.238:8000/v1/generate",
+            "concat-upscale-audio": "http://192.168.0.238:8000/v1/generate",
+            "qwen-edit-fp8": "http://192.168.0.238:8000/v1/generate",
+            "qwen-edit-nextsence": "http://192.168.0.238:8000/v1/generate"
+        },
+        "vllm": {
+            "qwen-llm": "https://65942ddcfb59a7f3-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/chat/completions",
+            "qwen-vl": "https://50067120bfc96748-8000.us-ca-6.gpu-instance.novita.ai/v1/generate"
+        }
     },
     "test": {
-        "flux": "https://test-api.digen.ai/flux",
-        "qwen-edit": "https://test-api.digen.ai/qwen-edit",
-        "qwen-image": "https://test-api.digen.ai/qwen-image",
-        "wan-talk": "https://test-api.digen.ai/wan-talk",
-        "wan-i2v": "https://test-api.digen.ai/wan-i2v",
-        "concat-upscale": "https://test-api.digen.ai/concat-upscale",
-        "concat-upscale-audio": "https://test-api.digen.ai/concat-upscale-audio",
-        "qwen-edit-fp8": "https://test-api.digen.ai/qwen-edit-fp8",
-        "qwen-edit-nextsence": "https://test-api.digen.ai/qwen-edit-nextsence"
+        "comfy": {
+            "flux": "https://test-api.digen.ai/flux",
+            "qwen-edit": "https://test-api.digen.ai/qwen-edit",
+            "qwen-image": "https://test-api.digen.ai/qwen-image",
+            "wan-talk": "https://test-api.digen.ai/wan-talk",
+            "wan-i2v": "https://test-api.digen.ai/wan-i2v",
+            "concat-upscale": "https://test-api.digen.ai/concat-upscale",
+            "concat-upscale-audio": "https://test-api.digen.ai/concat-upscale-audio",
+            "qwen-edit-fp8": "https://test-api.digen.ai/qwen-edit-fp8",
+            "qwen-edit-nextsence": "https://test-api.digen.ai/qwen-edit-nextsence"
+        },
+        "vllm": {
+            "qwen-llm": "https://test-api.digen.ai/qwen-llm",
+            "qwen-vl": "https://test-api.digen.ai/qwen-vl"
+        }
     },
     "prod": {
-        "flux": "https://api.digen.ai/flux",
-        "qwen-edit": "https://api.digen.ai/qwen-edit",
-        "qwen-image": "https://api.digen.ai/qwen-image",
-        "wan-talk": "https://api.digen.ai/wan-talk",
-        "wan-i2v": "https://api.digen.ai/wan-i2v",
-        "concat-upscale": "https://api.digen.ai/concat-upscale",
-        "concat-upscale-audio": "https://api.digen.ai/concat-upscale-audio",
-        "qwen-edit-fp8": "https://api.digen.ai/qwen-edit-fp8",
-        "qwen-edit-nextsence": "https://api.digen.ai/qwen-edit-nextsence"
+        "comfy": {
+            "flux": "https://api.digen.ai/flux",
+            "qwen-edit": "https://api.digen.ai/qwen-edit",
+            "qwen-image": "https://api.digen.ai/qwen-image",
+            "wan-talk": "https://api.digen.ai/wan-talk",
+            "wan-i2v": "https://api.digen.ai/wan-i2v",
+            "concat-upscale": "https://api.digen.ai/concat-upscale",
+            "concat-upscale-audio": "https://api.digen.ai/concat-upscale-audio",
+            "qwen-edit-fp8": "https://api.digen.ai/qwen-edit-fp8",
+            "qwen-edit-nextsence": "https://api.digen.ai/qwen-edit-nextsence"
+        },
+        "vllm": {
+            "qwen-llm": "https://api.digen.ai/qwen-llm",
+            "qwen-vl": "https://api.digen.ai/qwen-vl"
+        }
     }
 }

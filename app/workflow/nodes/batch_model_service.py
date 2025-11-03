@@ -23,8 +23,8 @@ class BatchModelServiceNode(IterativeNode):
     def __init__(self, node_id: Optional[str] = None):
         super().__init__(node_id)
         
-        # 基本配置 - 从配置文件动态获取模型选项
-        model_options = api_url_config.get_all_model_names()
+        # 基本配置 - 只显示comfy分组的模型选项
+        model_options = api_url_config.get_group_model_names("comfy")
         self.add_input_port("model", "string", True, options=model_options)  # 模型名称
         self.add_input_port("timeout", "number", False)  # 超时时间（秒）
         

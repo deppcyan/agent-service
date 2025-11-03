@@ -53,9 +53,9 @@ class APIURLConfig:
         """获取当前环境
         
         Returns:
-            环境名称，默认为'dev'
+            环境名称，默认为'prod'
         """
-        env = os.getenv("ENVIRONMENT", "dev").lower()
+        env = os.getenv("DIGEN_SERVICE_ENV", "prod").lower()
         logger.debug(f"当前环境: {env}")
         return env
     
@@ -75,15 +75,22 @@ class APIURLConfig:
             logger.warning(f"环境 '{env}' 在配置中不存在，可用环境: {list(self._config_data.keys())}")
             return None
         
-        # 检查服务是否存在
         env_config = self._config_data[env]
-        if service_name not in env_config:
-            logger.warning(f"服务 '{service_name}' 在环境 '{env}' 中不存在，可用服务: {list(env_config.keys())}")
-            return None
         
-        api_url = env_config[service_name]
-        logger.debug(f"获取API URL: {service_name} -> {api_url} (环境: {env})")
-        return api_url
+        # 在所有分组中查找服务
+        for group_name, group_services in env_config.items():
+            if service_name in group_services:
+                api_url = group_services[service_name]
+                logger.debug(f"获取API URL: {service_name} -> {api_url} (环境: {env}, 分组: {group_name})")
+                return api_url
+        
+        # 收集所有可用服务用于错误提示
+        all_services = []
+        for group_services in env_config.values():
+            all_services.extend(group_services.keys())
+        
+        logger.warning(f"服务 '{service_name}' 在环境 '{env}' 中不存在，可用服务: {all_services}")
+        return None
     
     def get_all_services(self, environment: Optional[str] = None) -> Dict[str, str]:
         """获取指定环境的所有服务配置
@@ -100,7 +107,12 @@ class APIURLConfig:
             logger.warning(f"环境 '{env}' 在配置中不存在")
             return {}
         
-        return self._config_data[env].copy()
+        # 合并所有分组的服务
+        all_services = {}
+        for group_services in self._config_data[env].values():
+            all_services.update(group_services)
+        
+        return all_services
     
     def get_available_environments(self) -> list:
         """获取所有可用环境
@@ -124,7 +136,12 @@ class APIURLConfig:
         if env not in self._config_data:
             return []
         
-        return list(self._config_data[env].keys())
+        # 收集所有分组的服务名称
+        all_services = []
+        for group_services in self._config_data[env].values():
+            all_services.extend(group_services.keys())
+        
+        return sorted(all_services)
     
     def get_all_model_names(self) -> list:
         """获取所有环境中的模型名称（去重）
@@ -134,8 +151,48 @@ class APIURLConfig:
         """
         all_models = set()
         for env_config in self._config_data.values():
-            all_models.update(env_config.keys())
+            for group_services in env_config.values():
+                all_models.update(group_services.keys())
         return sorted(list(all_models))
+    
+    def get_group_model_names(self, group_name: str, environment: Optional[str] = None) -> list:
+        """获取指定分组的模型名称
+        
+        Args:
+            group_name: 分组名称（如 'comfy' 或 'vllm'）
+            environment: 环境名称，如果为None则使用当前环境
+            
+        Returns:
+            指定分组的模型名称列表
+        """
+        env = environment or self.get_environment()
+        
+        if env not in self._config_data:
+            logger.warning(f"环境 '{env}' 在配置中不存在")
+            return []
+        
+        env_config = self._config_data[env]
+        if group_name not in env_config:
+            logger.warning(f"分组 '{group_name}' 在环境 '{env}' 中不存在，可用分组: {list(env_config.keys())}")
+            return []
+        
+        return sorted(list(env_config[group_name].keys()))
+    
+    def get_available_groups(self, environment: Optional[str] = None) -> list:
+        """获取指定环境的所有可用分组
+        
+        Args:
+            environment: 环境名称，如果为None则使用当前环境
+            
+        Returns:
+            分组名称列表
+        """
+        env = environment or self.get_environment()
+        
+        if env not in self._config_data:
+            return []
+        
+        return list(self._config_data[env].keys())
     
     def reload_config(self):
         """重新加载配置文件"""
