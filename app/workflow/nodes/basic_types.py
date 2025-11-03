@@ -147,3 +147,63 @@ class FloatToTextNode(WorkflowNode):
             
         return {"text": text_value}
 
+
+class MathOperationNode(WorkflowNode):
+    """Node that performs basic mathematical operations on two numbers.
+    Supports addition, subtraction, multiplication, and division.
+    Accepts both integers and floating-point numbers as input."""
+    
+    category = "basic_types"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("a", "number", True, default_value=0, tooltip="First number operand (integer or float)")
+        self.add_input_port("b", "number", True, default_value=0, tooltip="Second number operand (integer or float)")
+        self.add_input_port("operation", "string", True, default_value="add", 
+                           options=["add", "subtract", "multiply", "divide"],
+                           tooltip="Mathematical operation to perform: add (+), subtract (-), multiply (*), divide (/)")
+        self.add_output_port("result", "number", tooltip="Result of the mathematical operation")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        a = self.input_values["a"]
+        b = self.input_values["b"]
+        operation = self.input_values["operation"]
+        
+        # Convert values to numbers (int or float)
+        try:
+            # Try to convert to float first to handle both int and float inputs
+            num_a = float(a)
+            num_b = float(b)
+            
+            # If the float values are whole numbers, convert to int for cleaner output
+            if num_a.is_integer():
+                num_a = int(num_a)
+            if num_b.is_integer():
+                num_b = int(num_b)
+                
+        except (ValueError, TypeError):
+            raise ValueError(f"Input values must be convertible to numbers: a='{a}', b='{b}'")
+        
+        # Perform the operation
+        if operation == "add":
+            result = num_a + num_b
+        elif operation == "subtract":
+            result = num_a - num_b
+        elif operation == "multiply":
+            result = num_a * num_b
+        elif operation == "divide":
+            if num_b == 0:
+                raise ValueError("Division by zero is not allowed")
+            result = num_a / num_b
+        else:
+            raise ValueError(f"Unsupported operation: {operation}")
+        
+        # If result is a whole number, return as int for cleaner output
+        if isinstance(result, float) and result.is_integer():
+            result = int(result)
+            
+        return {"result": result}
+
