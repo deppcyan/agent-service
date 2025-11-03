@@ -9,9 +9,9 @@ class TextToListNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("text", "string", True)
-        self.add_input_port("repeat_count", "number", False, "Number of times to repeat the text (default: 1)")
-        self.add_output_port("list", "array")  # Output will be string array
+        self.add_input_port("text", "string", True, tooltip="Text to convert into a list")
+        self.add_input_port("repeat_count", "number", False, default_value=1, tooltip="Number of times to repeat the text (default: 1)")
+        self.add_output_port("list", "array", tooltip="Array containing the repeated text")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -36,8 +36,8 @@ class ListToTextNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("list", "array", True)  # Input will be string array
-        self.add_output_port("text", "string")
+        self.add_input_port("list", "array", True, tooltip="Array of strings to extract from")
+        self.add_output_port("text", "string", tooltip="First element from the input array")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -63,14 +63,14 @@ class TextCombinerNode(WorkflowNode):
         super().__init__(node_id)
         
         # Input ports
-        self.add_input_port("prompt", "string", True, "Template with variables like {text_a}, {text_b}, {text_c}")
-        self.add_input_port("text_a", "string", False, "")
-        self.add_input_port("text_b", "string", False, "")
-        self.add_input_port("text_c", "string", False, "")
+        self.add_input_port("prompt", "string", True, tooltip="Template with variables like {text_a}, {text_b}, {text_c}")
+        self.add_input_port("text_a", "string", False, default_value="", tooltip="Text value for variable {text_a}")
+        self.add_input_port("text_b", "string", False, default_value="", tooltip="Text value for variable {text_b}")
+        self.add_input_port("text_c", "string", False, default_value="", tooltip="Text value for variable {text_c}")
         
         # Output ports
-        self.add_output_port("combined_text", "string")
-        self.add_output_port("used_variables", "object")
+        self.add_output_port("combined_text", "string", tooltip="Text with variables replaced by their values")
+        self.add_output_port("used_variables", "object", tooltip="Object showing which variables were used in the template")
     
     async def process(self) -> Dict[str, Any]:
         """Process the node's inputs and return outputs"""
@@ -117,10 +117,10 @@ class LoadTextFromFileNode(WorkflowNode):
         super().__init__(node_id)
         
         # Input ports
-        self.add_input_port("file_path", "string", True, "Relative path to the text file")
+        self.add_input_port("file_path", "string", True, tooltip="Relative path to the text file")
         
         # Output ports
-        self.add_output_port("text", "string")
+        self.add_output_port("text", "string", tooltip="Content of the loaded text file")
     
     async def process(self) -> Dict[str, Any]:
         """Process the node's inputs and return outputs"""
@@ -160,8 +160,8 @@ class TextStripNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("text", "string", True, "Text to strip")
-        self.add_output_port("text", "string")
+        self.add_input_port("text", "string", True, tooltip="Text to strip")
+        self.add_output_port("text", "string", tooltip="Text with leading and trailing whitespace removed")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -187,8 +187,8 @@ class TextRemoveEmptyLinesNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("text", "string", True, "Text to clean up")
-        self.add_output_port("text", "string")
+        self.add_input_port("text", "string", True, tooltip="Text to clean up")
+        self.add_output_port("text", "string", tooltip="Text with empty lines removed")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -215,11 +215,11 @@ class TextSplitNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("text", "string", True, "Text to split")
-        self.add_input_port("delimiter", "string", False, "Delimiter to split by (default: \\n)")
-        self.add_input_port("max_splits", "number", False, "Maximum number of splits (default: unlimited)")
-        self.add_output_port("segments", "array")
-        self.add_output_port("count", "number")
+        self.add_input_port("text", "string", True, tooltip="Text to split")
+        self.add_input_port("delimiter", "string", False, default_value="\n", tooltip="Delimiter to split by (default: \\n)")
+        self.add_input_port("max_splits", "number", False, tooltip="Maximum number of splits (default: unlimited)")
+        self.add_output_port("segments", "array", tooltip="Array of text segments after splitting")
+        self.add_output_port("count", "number", tooltip="Number of segments created")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():

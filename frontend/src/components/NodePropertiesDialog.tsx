@@ -1,5 +1,20 @@
 import { useState, useEffect } from 'react';
 import { api, type NodeType } from '../services/api';
+
+// Simple tooltip component
+const Tooltip = ({ children, content }: { children: React.ReactNode; content?: string }) => {
+  if (!content) return <>{children}</>;
+  
+  return (
+    <div className="relative group">
+      {children}
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50 border border-gray-600">
+        {content}
+        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+      </div>
+    </div>
+  );
+};
 import type { Node } from 'reactflow';
 
 interface NodePropertiesDialogProps {
@@ -85,10 +100,24 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
           <div className="space-y-4">
             {Object.entries(nodeType.input_ports).map(([key, port]) => (
               <div key={key}>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  {key}
-                  {!port.required && ' (optional)'}
-                </label>
+                <div className="flex items-center gap-2 mb-1">
+                  <label className="block text-sm font-medium text-gray-300">
+                    {key}
+                    {!port.required && ' (optional)'}
+                  </label>
+                  {port.tooltip && (
+                    <Tooltip content={port.tooltip}>
+                      <span className="text-gray-400 text-xs cursor-help hover:text-gray-200 transition-colors">
+                        ⓘ
+                      </span>
+                    </Tooltip>
+                  )}
+                  {port.tooltip && (
+                    <span className="text-xs text-gray-400 italic">
+                      {port.tooltip}
+                    </span>
+                  )}
+                </div>
                 {port.options && port.options.length > 0 ? (
                   <select
                     value={inputValues[key] || ''}

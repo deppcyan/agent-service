@@ -9,8 +9,8 @@ class TextInputNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("text", "string", True)
-        self.add_output_port("text", "string")
+        self.add_input_port("text", "string", True, tooltip="Enter the text content that will be passed through unchanged")
+        self.add_output_port("text", "string", tooltip="The same text that was provided as input")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -28,8 +28,8 @@ class IntInputNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("value", "number", True, "Integer value")
-        self.add_output_port("value", "number")
+        self.add_input_port("value", "number", True, default_value=0, tooltip="Enter an integer number (whole number without decimal places)")
+        self.add_output_port("value", "number", tooltip="The same integer value that was provided as input")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -54,8 +54,8 @@ class FloatInputNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("value", "number", True, "Float value")
-        self.add_output_port("value", "number")
+        self.add_input_port("value", "number", True, default_value=0.0, tooltip="Enter a decimal number (number with decimal places)")
+        self.add_output_port("value", "number", tooltip="The same decimal value that was provided as input")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -80,8 +80,8 @@ class BoolInputNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("value", "boolean", True, "Boolean value")
-        self.add_output_port("value", "boolean")
+        self.add_input_port("value", "boolean", True, default_value=False, tooltip="Boolean value (true or false)")
+        self.add_output_port("value", "boolean", tooltip="The same boolean value that was provided as input")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -102,8 +102,8 @@ class IntToTextNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("value", "number", True, "Integer value to convert")
-        self.add_output_port("text", "string")
+        self.add_input_port("value", "number", True, tooltip="Integer value to convert to text")
+        self.add_output_port("text", "string", tooltip="Text representation of the integer value")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():
@@ -129,8 +129,8 @@ class FloatToTextNode(WorkflowNode):
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
-        self.add_input_port("value", "number", True, "Float value to convert")
-        self.add_output_port("text", "string")
+        self.add_input_port("value", "number", True, tooltip="Float value to convert to text")
+        self.add_output_port("text", "string", tooltip="Text representation of the float value")
     
     async def process(self) -> Dict[str, Any]:
         if not self.validate_inputs():

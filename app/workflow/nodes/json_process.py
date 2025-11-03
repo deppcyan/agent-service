@@ -12,10 +12,10 @@ class JsonParseNode(WorkflowNode):
         super().__init__(node_id)
         
         # 输入端口
-        self.add_input_port("json_string", "string", True, "JSON字符串")
+        self.add_input_port("json_string", "string", True, tooltip="JSON字符串")
         
         # 输出端口
-        self.add_output_port("json_object", "object")  # 解析后的JSON对象
+        self.add_output_port("json_object", "object", tooltip="解析后的JSON对象")
     
     async def process(self) -> Dict[str, Any]:
         """解析JSON字符串"""
@@ -60,11 +60,11 @@ class JsonExtractNode(WorkflowNode):
         super().__init__(node_id)
         
         # 输入端口
-        self.add_input_port("json_object", "object", True, "JSON对象")
-        self.add_input_port("key", "string", True, "要提取的字段名")
+        self.add_input_port("json_object", "object", True, tooltip="JSON对象")
+        self.add_input_port("key", "string", True, tooltip="要提取的字段名")
         
         # 输出端口
-        self.add_output_port("value", "any")  # 提取的值
+        self.add_output_port("value", "any", tooltip="提取的值")
     
     async def process(self) -> Dict[str, Any]:
         """从JSON对象提取字段值"""

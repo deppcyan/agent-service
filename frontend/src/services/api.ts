@@ -14,6 +14,7 @@ export interface NodePort {
   required: boolean;
   default_value?: any;
   options?: any[];
+  tooltip?: string;
 }
 
 export interface NodeType {
