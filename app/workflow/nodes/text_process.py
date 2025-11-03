@@ -248,3 +248,93 @@ class TextSplitNode(WorkflowNode):
             "segments": segments,
             "count": len(segments)
         }
+
+
+class TextReplaceNode(WorkflowNode):
+    """Node that replaces text with specified count and direction.
+    Supports replacing from start, end, or all occurrences."""
+    
+    category = "text_process"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("text", "string", True, tooltip="The original text where replacements will be made")
+        self.add_input_port("old_text", "string", True, tooltip="The substring to search for and replace")
+        self.add_input_port("new_text", "string", False, tooltip="The text to replace matches with. Leave empty to remove matches")
+        self.add_input_port("count", "number", False, tooltip="Maximum number of replacements to make. Use -1 or leave empty for unlimited")
+        self.add_input_port("direction", "string", False, options=["all", "start", "end"], tooltip="Direction to perform replacements: 'all' for everywhere, 'start' from beginning, 'end' from end")
+        self.add_output_port("replaced_text", "string", tooltip="The text after performing all replacements")
+        self.add_output_port("replacement_count", "number", tooltip="The actual number of replacements that were made")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+            
+        text = self.input_values["text"]
+        old_text = self.input_values["old_text"]
+        new_text = self.input_values.get("new_text", "")
+        count = self.input_values.get("count", -1)
+        direction = self.input_values.get("direction", "all").lower()
+        
+        if not isinstance(text, str):
+            text = str(text)
+        
+        if not isinstance(old_text, str):
+            old_text = str(old_text)
+            
+        if not isinstance(new_text, str):
+            new_text = str(new_text)
+        
+        if count is not None:
+            count = int(count)
+        
+        # Validate direction
+        if direction not in ["start", "end", "all"]:
+            raise ValueError("direction must be 'start', 'end', or 'all'")
+        
+        # If old_text is empty, return original text
+        if not old_text:
+            return {
+                "replaced_text": text,
+                "replacement_count": 0
+            }
+        
+        replacement_count = 0
+        
+        if direction == "all" or count == -1:
+            # Replace all occurrences
+            if count == -1:
+                replaced_text = text.replace(old_text, new_text)
+                replacement_count = text.count(old_text)
+            else:
+                replaced_text = text.replace(old_text, new_text, count)
+                replacement_count = min(text.count(old_text), count)
+                
+        elif direction == "start":
+            # Replace from start
+            replaced_text = text
+            current_pos = 0
+            
+            for _ in range(count if count > 0 else float('inf')):
+                pos = replaced_text.find(old_text, current_pos)
+                if pos == -1:
+                    break
+                replaced_text = replaced_text[:pos] + new_text + replaced_text[pos + len(old_text):]
+                current_pos = pos + len(new_text)
+                replacement_count += 1
+                
+        elif direction == "end":
+            # Replace from end
+            replaced_text = text
+            
+            for _ in range(count if count > 0 else float('inf')):
+                pos = replaced_text.rfind(old_text)
+                if pos == -1:
+                    break
+                replaced_text = replaced_text[:pos] + new_text + replaced_text[pos + len(old_text):]
+                replacement_count += 1
+            
+        return {
+            "replaced_text": replaced_text,
+            "replacement_count": replacement_count
+        }

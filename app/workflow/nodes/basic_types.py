@@ -147,29 +147,3 @@ class FloatToTextNode(WorkflowNode):
             
         return {"text": text_value}
 
-
-class TextStripNode(WorkflowNode):
-    """Node that strips whitespace and newlines from both ends of text.
-    Useful for cleaning up text input by removing leading and trailing spaces, tabs, and newlines."""
-    
-    category = "basic_types"
-    
-    def __init__(self, node_id: str = None):
-        super().__init__(node_id)
-        self.add_input_port("text", "string", True, "Text to strip")
-        self.add_output_port("text", "string")
-    
-    async def process(self) -> Dict[str, Any]:
-        if not self.validate_inputs():
-            raise ValueError("Required inputs missing")
-            
-        text = self.input_values["text"]
-        
-        # Strip whitespace and newlines from both ends
-        if isinstance(text, str):
-            stripped_text = text.strip()
-        else:
-            # Convert to string first if not already a string, then strip
-            stripped_text = str(text).strip()
-            
-        return {"text": stripped_text}

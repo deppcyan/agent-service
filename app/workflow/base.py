@@ -10,6 +10,7 @@ class NodePort:
     required: bool = True
     default_value: Any = None
     options: Optional[List[Any]] = None  # 候选值列表，前端可从中选择
+    tooltip: Optional[str] = None  # 提示信息
 
 class WorkflowNode:
     """Base class for all workflow nodes"""
@@ -21,13 +22,13 @@ class WorkflowNode:
         self.input_values: Dict[str, Any] = {}
         self.output_values: Dict[str, Any] = {}
     
-    def add_input_port(self, name: str, port_type: str, required: bool = True, default_value: Any = None, options: Optional[List[Any]] = None):
+    def add_input_port(self, name: str, port_type: str, required: bool = True, default_value: Any = None, options: Optional[List[Any]] = None, tooltip: Optional[str] = None):
         """Add an input port to the node"""
-        self.input_ports[name] = NodePort(name, port_type, required, default_value, options)
+        self.input_ports[name] = NodePort(name, port_type, required, default_value, options, tooltip)
     
-    def add_output_port(self, name: str, port_type: str):
+    def add_output_port(self, name: str, port_type: str, tooltip: Optional[str] = None):
         """Add an output port to the node"""
-        self.output_ports[name] = NodePort(name, port_type, True)
+        self.output_ports[name] = NodePort(name, port_type, True, tooltip=tooltip)
     
     async def process(self) -> Dict[str, Any]:
         """Process the node's inputs and return outputs"""

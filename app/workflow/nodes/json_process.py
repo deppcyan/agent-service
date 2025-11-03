@@ -6,7 +6,7 @@ import json
 class JsonParseNode(WorkflowNode):
     """将JSON字符串解析为JSON对象"""
     
-    category = "data_process"
+    category = "json_process"
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
@@ -54,7 +54,7 @@ class JsonParseNode(WorkflowNode):
 class JsonExtractNode(WorkflowNode):
     """从JSON对象中提取指定字段的值"""
     
-    category = "data_process"
+    category = "json_process"
     
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
