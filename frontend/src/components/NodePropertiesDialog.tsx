@@ -33,6 +33,7 @@ const AutoResizeTextarea = ({
   maxRows?: number;
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   const adjustHeight = () => {
     const textarea = textareaRef.current;
@@ -49,11 +50,28 @@ const AutoResizeTextarea = ({
     // Set height based on content, but within min/max bounds
     const newHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
     textarea.style.height = `${newHeight}px`;
+    
+    // Enable scrolling if content exceeds max height
+    if (textarea.scrollHeight > maxHeight) {
+      textarea.style.overflow = 'auto';
+    } else {
+      textarea.style.overflow = 'hidden';
+    }
   };
 
   useEffect(() => {
     adjustHeight();
   }, [value]);
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    // Re-adjust height when focused to ensure proper scrolling
+    setTimeout(adjustHeight, 0);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
 
   return (
     <textarea
@@ -64,11 +82,13 @@ const AutoResizeTextarea = ({
         // Adjust height on next tick to ensure value is updated
         setTimeout(adjustHeight, 0);
       }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       placeholder={placeholder}
       className={className}
       style={{ 
         resize: 'none',
-        overflow: 'hidden',
+        overflow: isFocused ? 'auto' : 'hidden',
         minHeight: `${minRows * 24}px`
       }}
       rows={minRows}
