@@ -3,6 +3,7 @@ from app.workflow.node_control import IterativeNode
 from app.workflow.nodes.model_service import ModelServiceNode
 from app.workflow.nodes.model_request import ModelRequestNode
 from app.utils.logger import logger
+from app.core.api_url_config import api_url_config
 
 class BatchModelServiceNode(IterativeNode):
     """批量处理模型服务请求的节点
@@ -22,9 +23,9 @@ class BatchModelServiceNode(IterativeNode):
     def __init__(self, node_id: Optional[str] = None):
         super().__init__(node_id)
         
-        # 基本配置
-        self.add_input_port("model", "string", True, options=["flux", "qwen-edit", "qwen-image", "wan-talk", "wan-i2v", "concat-upscale", "concat-upscale-audio", "qwen-edit-fp8", "qwen-edit-nextsence"])  # 模型名称
-        self.add_input_port("api_url", "string", True)  # API 端点
+        # 基本配置 - 从配置文件动态获取模型选项
+        model_options = api_url_config.get_all_model_names()
+        self.add_input_port("model", "string", True, options=model_options)  # 模型名称
         self.add_input_port("timeout", "number", False)  # 超时时间（秒）
         
         # 输出端口
@@ -51,7 +52,6 @@ class BatchModelServiceNode(IterativeNode):
         model_node.input_values = {
             "model": self.input_values["model"],
             "request": request_data,  # 直接使用请求数据
-            "api_url": self.input_values["api_url"],
             "timeout": self.input_values.get("timeout")  # 超时时间（可选）
         }
         

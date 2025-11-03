@@ -1,6 +1,7 @@
 from typing import Dict, Any, List
 from app.workflow.node_api import AsyncDigenAPINode
 from app.utils.logger import logger
+from app.core.api_url_config import api_url_config
 
 class ModelServiceNode(AsyncDigenAPINode):
     """模型服务节点
@@ -15,10 +16,12 @@ class ModelServiceNode(AsyncDigenAPINode):
     """
     
     def __init__(self, node_id: str = None):
+        # 使用一个占位符service_name，实际的service_name将从输入中获取
         super().__init__("model-service", node_id)
         
-        # 输入端口
-        self.add_input_port("model", "string", True, options=["flux", "qwen-edit", "qwen-image", "wan-talk", "wan-i2v", "concat-upscale", "concat-upscale-audio", "qwen-edit-fp8", "qwen-edit-nextsence"])  # 模型名称/标识符
+        # 输入端口 - 从配置文件动态获取模型选项
+        model_options = api_url_config.get_all_model_names()
+        self.add_input_port("model", "string", True, options=model_options)  # 模型名称/标识符
         self.add_input_port("request", "object", True)  # 请求数据
         
         # Output ports
@@ -28,6 +31,19 @@ class ModelServiceNode(AsyncDigenAPINode):
         self.add_output_port("options", "object")  # Options used for generation
         self.add_output_port("status", "string")  # Status of the request
         self.add_output_port("metadata", "object")  # Additional metadata from the model
+    
+    def get_api_url(self) -> str:
+        """根据输入的model参数获取对应的API URL"""
+        if not hasattr(self, 'input_values') or 'model' not in self.input_values:
+            raise ValueError("Model parameter not available in input_values")
+        
+        model_name = self.input_values['model']
+        api_url = api_url_config.get_api_url(model_name)
+        if not api_url:
+            raise ValueError(f"API URL not found for model '{model_name}' in current environment")
+        
+        logger.debug(f"获取模型 {model_name} 的API URL: {api_url}")
+        return api_url
     
     def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """准备模型服务请求数据"""

@@ -7,6 +7,7 @@ from app.workflow.base import WorkflowNode
 from app.utils.logger import logger
 from app.core.callback_manager import callback_manager
 from app.utils.utils import get_service_url
+from app.core.api_url_config import api_url_config
 import json
 
 class BaseDigenAPINode(WorkflowNode, ABC):
@@ -22,10 +23,14 @@ class BaseDigenAPINode(WorkflowNode, ABC):
         self.api_key = os.getenv("DIGEN_API_KEY")
         if not self.api_key:
             raise ValueError("DIGEN_API_KEY environment variable not set")
-            
-        # Common input ports for API services
-        self.add_input_port("api_url", "string", True)
         
+    def get_api_url(self) -> str:
+        """Get API URL for the service from configuration"""
+        api_url = api_url_config.get_api_url(self.service_name)
+        if not api_url:
+            raise ValueError(f"API URL not found for service '{self.service_name}' in current environment")
+        return api_url
+    
     def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Prepare request data for the service. Must be implemented by child classes."""
         raise NotImplementedError("_prepare_request must be implemented by child classes")
@@ -38,7 +43,7 @@ class BaseDigenAPINode(WorkflowNode, ABC):
         }
         
         if url is None:
-            url = self.input_values['api_url']
+            url = self.get_api_url()
         
         async with aiohttp.ClientSession() as session:
             logger.info(f"{self.service_name}: Making {method} request to {url}")

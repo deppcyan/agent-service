@@ -1,0 +1,35 @@
+{
+    "dev": {
+        "flux": "https://dev-api.digen.ai/flux",
+        "qwen-edit": "https://dev-api.digen.ai/qwen-edit",
+        "qwen-image": "https://dev-api.digen.ai/qwen-image",
+        "wan-talk": "https://dev-api.digen.ai/wan-talk",
+        "wan-i2v": "https://dev-api.digen.ai/wan-i2v",
+        "concat-upscale": "https://dev-api.digen.ai/concat-upscale",
+        "concat-upscale-audio": "https://dev-api.digen.ai/concat-upscale-audio",
+        "qwen-edit-fp8": "https://dev-api.digen.ai/qwen-edit-fp8",
+        "qwen-edit-nextsence": "https://dev-api.digen.ai/qwen-edit-nextsence"
+    },
+    "test": {
+        "flux": "https://test-api.digen.ai/flux",
+        "qwen-edit": "https://test-api.digen.ai/qwen-edit",
+        "qwen-image": "https://test-api.digen.ai/qwen-image",
+        "wan-talk": "https://test-api.digen.ai/wan-talk",
+        "wan-i2v": "https://test-api.digen.ai/wan-i2v",
+        "concat-upscale": "https://test-api.digen.ai/concat-upscale",
+        "concat-upscale-audio": "https://test-api.digen.ai/concat-upscale-audio",
+        "qwen-edit-fp8": "https://test-api.digen.ai/qwen-edit-fp8",
+        "qwen-edit-nextsence": "https://test-api.digen.ai/qwen-edit-nextsence"
+    },
+    "prod": {
+        "flux": "https://api.digen.ai/flux",
+        "qwen-edit": "https://api.digen.ai/qwen-edit",
+        "qwen-image": "https://api.digen.ai/qwen-image",
+        "wan-talk": "https://api.digen.ai/wan-talk",
+        "wan-i2v": "https://api.digen.ai/wan-i2v",
+        "concat-upscale": "https://api.digen.ai/concat-upscale",
+        "concat-upscale-audio": "https://api.digen.ai/concat-upscale-audio",
+        "qwen-edit-fp8": "https://api.digen.ai/qwen-edit-fp8",
+        "qwen-edit-nextsence": "https://api.digen.ai/qwen-edit-nextsence"
+    }
+}
