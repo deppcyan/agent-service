@@ -217,7 +217,7 @@ class TextSplitNode(WorkflowNode):
         super().__init__(node_id)
         self.add_input_port("text", "string", True, tooltip="Text to split")
         self.add_input_port("delimiter", "string", False, default_value="\n", tooltip="Delimiter to split by (default: \\n)")
-        self.add_input_port("max_splits", "number", False, tooltip="Maximum number of splits (default: unlimited)")
+        self.add_input_port("max_splits", "number", False, tooltip="Maximum number of segments to create (default: unlimited)")
         self.add_output_port("segments", "array", tooltip="Array of text segments after splitting")
         self.add_output_port("count", "number", tooltip="Number of segments created")
     
@@ -240,7 +240,13 @@ class TextSplitNode(WorkflowNode):
             max_splits = int(max_splits)
             if max_splits < 0:
                 raise ValueError("max_splits must be non-negative")
-            segments = text.split(delimiter, max_splits)
+            # Note: split(delimiter, max_splits) performs at most max_splits splits,
+            # which results in at most max_splits+1 segments
+            # If user wants exactly max_splits segments, we need max_splits-1 as the split parameter
+            if max_splits == 0:
+                segments = [text]  # No splitting, return original text as single segment
+            else:
+                segments = text.split(delimiter, max_splits - 1)
         else:
             segments = text.split(delimiter)
             
