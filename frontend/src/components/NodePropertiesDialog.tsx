@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api, type NodeType } from '../services/api';
 
 // Simple tooltip component
@@ -13,6 +13,66 @@ const Tooltip = ({ children, content }: { children: React.ReactNode; content?: s
         <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
       </div>
     </div>
+  );
+};
+
+// Auto-resizing textarea component
+const AutoResizeTextarea = ({ 
+  value, 
+  onChange, 
+  placeholder, 
+  className,
+  minRows = 1,
+  maxRows = 10
+}: {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  placeholder?: string;
+  className?: string;
+  minRows?: number;
+  maxRows?: number;
+}) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustHeight = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset height to auto to get the correct scrollHeight
+    textarea.style.height = 'auto';
+    
+    // Calculate the number of lines
+    const lineHeight = 24; // Approximate line height in pixels
+    const minHeight = minRows * lineHeight;
+    const maxHeight = maxRows * lineHeight;
+    
+    // Set height based on content, but within min/max bounds
+    const newHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
+    textarea.style.height = `${newHeight}px`;
+  };
+
+  useEffect(() => {
+    adjustHeight();
+  }, [value]);
+
+  return (
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={(e) => {
+        onChange(e);
+        // Adjust height on next tick to ensure value is updated
+        setTimeout(adjustHeight, 0);
+      }}
+      placeholder={placeholder}
+      className={className}
+      style={{ 
+        resize: 'none',
+        overflow: 'hidden',
+        minHeight: `${minRows * 24}px`
+      }}
+      rows={minRows}
+    />
   );
 };
 import type { Node } from 'reactflow';
@@ -75,6 +135,7 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
 
   const inputClasses = "w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent";
   const textareaClasses = `${inputClasses} font-mono text-sm h-32`;
+  const autoResizeTextareaClasses = `${inputClasses} leading-6`;
 
   return (
     <div 
@@ -135,15 +196,16 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                     ))}
                   </select>
                 ) : port.port_type === 'string' ? (
-                  <input
-                    type="text"
+                  <AutoResizeTextarea
                     value={inputValues[key] || ''}
                     onChange={(e) => setInputValues({
                       ...inputValues,
                       [key]: e.target.value
                     })}
-                    className={inputClasses}
+                    className={autoResizeTextareaClasses}
                     placeholder={`Enter ${key}`}
+                    minRows={1}
+                    maxRows={8}
                   />
                 ) : port.port_type === 'number' ? (
                   <input
@@ -223,14 +285,16 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
                     <p className="mt-1 text-xs text-gray-400">Enter as JSON object</p>
                   </div>
                 ) : (
-                  <input
-                    type="text"
+                  <AutoResizeTextarea
                     value={inputValues[key] || ''}
                     onChange={(e) => setInputValues({
                       ...inputValues,
                       [key]: e.target.value
                     })}
-                    className={inputClasses}
+                    className={autoResizeTextareaClasses}
+                    placeholder={`Enter ${key}`}
+                    minRows={1}
+                    maxRows={8}
                   />
                 )}
                 {port.required && !inputValues[key] && (
