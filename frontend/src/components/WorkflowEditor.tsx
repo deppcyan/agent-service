@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -21,12 +21,8 @@ import type {
 } from 'reactflow';
 import type { WorkflowData, NodeType } from '../services/api';
 import { api } from '../services/api';
-import ExecuteButton from './ExecuteButton';
 import NodePropertiesDialog from './NodePropertiesDialog';
-import Sidebar from './Sidebar';
 import SaveAsDialog from './SaveAsDialog';
-import MainMenu from './MainMenu';
-import RightSidebar, { type RightSidebarRef } from './RightSidebar';
 import type { WorkflowTab } from './WorkflowTabs';
 
 interface Connection {
@@ -40,6 +36,7 @@ interface WorkflowEditorProps {
   tabId: string;
   initialWorkflowData: WorkflowData | null;
   workflowName: string;
+  onExecuteWorkflow: (workflowName: string, workflow: WorkflowData) => void;
   workflowTabsAPI: {
     updateCurrentTab: (updates: Partial<WorkflowTab>) => void;
     loadWorkflowToCurrentTab: (name: string, workflowData: WorkflowData) => void;
@@ -362,6 +359,7 @@ interface ContextMenu {
 const WorkflowEditorContent = ({ 
   initialWorkflowData, 
   workflowName, 
+  onExecuteWorkflow,
   workflowTabsAPI 
 }: WorkflowEditorProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -370,8 +368,6 @@ const WorkflowEditorContent = ({
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
-  const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
-  const rightSidebarRef = useRef<RightSidebarRef>(null);
   const { screenToFlowPosition } = useReactFlow();
 
   // Load initial workflow data
@@ -592,10 +588,6 @@ const WorkflowEditorContent = ({
     };
   };
 
-  // 创建新的workflow tab (delegate to parent)
-  const createNewWorkflow = useCallback(() => {
-    workflowTabsAPI.createNewTab();
-  }, [workflowTabsAPI]);
 
   // 导入workflow文件到新tab
   const importWorkflow = useCallback(async () => {
@@ -939,111 +931,70 @@ const WorkflowEditorContent = ({
     animated: true,
   };
 
-  // 保存执行历史
-  const handleSaveHistory = useCallback((execution: any) => {
-    // Handle execution history if needed
-    console.log('Execution completed:', execution);
-  }, []);
 
-  // 处理workflow执行
-  const handleExecuteWorkflow = useCallback((workflowName: string, workflow: WorkflowData) => {
-    if (rightSidebarRef.current) {
-      rightSidebarRef.current.createExecutionTab(workflowName, workflow);
-      // 如果右侧边栏是折叠的，展开它
-      if (isRightSidebarCollapsed) {
-        setIsRightSidebarCollapsed(false);
-      }
-    } else {
-      console.error('Right sidebar ref not available');
-    }
-  }, [isRightSidebarCollapsed]);
 
-  // 获取当前tab信息
-  const currentTab = workflowTabsAPI.getCurrentTab();
-  const canSave = Boolean(currentTab && !currentTab.isNew);
+  // 暴露给全局的API
+  const editorAPI = {
+    addNode: (nodeType: string) => {
+      api.getNodeTypes().then(nodeTypes => {
+        const selectedType = nodeTypes.nodes.find((t: NodeType) => t.name === nodeType);
+        if (selectedType) {
+          onNodeTypeSelect(selectedType);
+        }
+      });
+    },
+    loadWorkflow,
+    saveWorkflow: () => saveWorkflow(),
+    saveAsWorkflow: () => setShowSaveAsDialog(true),
+    exportWorkflow,
+    getCurrentWorkflow: () => workflow,
+  };
+
+  // 将API暴露给全局
+  useEffect(() => {
+    window.workflowEditorAPI = editorAPI;
+    return () => {
+      delete window.workflowEditorAPI;
+    };
+  }, [editorAPI]);
 
   return (
-    <div className="h-screen w-full flex bg-gray-900 text-gray-100">
-      <Sidebar
-        onNodeAdd={(nodeType: string) => {
-          api.getNodeTypes().then(nodeTypes => {
-            const selectedType = nodeTypes.nodes.find((t: NodeType) => t.name === nodeType);
-            if (selectedType) {
-              onNodeTypeSelect(selectedType);
+    <div className="h-full w-full flex flex-col bg-gray-900 text-gray-100">
+      {/* Main Content */}
+      <div className="flex-1">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges.map(edge => ({
+            ...edge,
+            ...edgeStyles,
+            className: edge.id === selectedEdge ? 'selected-edge' : '',
+            animated: edge.id === selectedEdge,
+            style: {
+              ...edgeStyles,
+              stroke: edge.id === selectedEdge ? '#818cf8' : '#6366f1', // Lighter color when selected
             }
-          });
-        }}
-        onWorkflowLoad={loadWorkflow}
-      />
-      <div className="flex-1 flex flex-col">
-        {/* Top Menu Bar */}
-        <div className="flex items-center justify-between p-2 bg-gray-800 border-b border-gray-700">
-          <div className="flex items-center gap-4">
-            <MainMenu
-              onNew={createNewWorkflow}
-              onImport={importWorkflow}
-              onSave={() => saveWorkflow()}
-              onSaveAs={() => setShowSaveAsDialog(true)}
-              onExport={exportWorkflow}
-              canSave={canSave}
-              currentWorkflowName={workflowName}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <ExecuteButton
-              workflow={workflow}
-              workflowName={workflowName}
-              onExecute={handleExecuteWorkflow}
-            />
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex">
-          <div className="flex-1">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges.map(edge => ({
-                ...edge,
-                ...edgeStyles,
-                className: edge.id === selectedEdge ? 'selected-edge' : '',
-                animated: edge.id === selectedEdge,
-                style: {
-                  ...edgeStyles,
-                  stroke: edge.id === selectedEdge ? '#818cf8' : '#6366f1', // Lighter color when selected
-                }
-              }))}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onNodesDelete={onNodesDelete}
-              onNodeClick={onNodeClick}
-              onEdgeClick={onEdgeClick}
-              onEdgeMouseEnter={onEdgeMouseEnter}
-              onEdgeMouseLeave={onEdgeMouseLeave}
-              onPaneClick={onPaneClick}
-              nodeTypes={nodeTypes}
-              connectionMode={ConnectionMode.Loose}
-              minZoom={0.1}
-              maxZoom={4}
-              fitView
-            >
-              <Background color="#4b5563" gap={16} />
-              <Controls 
-                className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-900 [&>button]:!text-gray-400 [&>button]:!border-gray-700 
-                  [&>button:hover]:!bg-gray-700 [&>button:hover]:!text-gray-200"
-              />
-            </ReactFlow>
-          </div>
-
-          {/* Right Sidebar */}
-          <RightSidebar
-            ref={rightSidebarRef}
-            isCollapsed={isRightSidebarCollapsed}
-            onToggleCollapse={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
-            onSaveHistory={handleSaveHistory}
+          }))}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodesDelete={onNodesDelete}
+          onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
+          onEdgeMouseEnter={onEdgeMouseEnter}
+          onEdgeMouseLeave={onEdgeMouseLeave}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          connectionMode={ConnectionMode.Loose}
+          minZoom={0.1}
+          maxZoom={4}
+          fitView
+        >
+          <Background color="#4b5563" gap={16} />
+          <Controls 
+            className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-900 [&>button]:!text-gray-400 [&>button]:!border-gray-700 
+              [&>button:hover]:!bg-gray-700 [&>button:hover]:!text-gray-200"
           />
-        </div>
+        </ReactFlow>
       </div>
 
       {/* Dialogs and Overlays */}

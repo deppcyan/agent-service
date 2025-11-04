@@ -11,9 +11,11 @@ export interface WorkflowTab {
   isNew: boolean;
 }
 
-interface WorkflowTabsProps {}
+interface WorkflowTabsProps {
+  onExecuteWorkflow: (workflowName: string, workflow: WorkflowData) => void;
+}
 
-export default function WorkflowTabs({}: WorkflowTabsProps) {
+export default function WorkflowTabs({ onExecuteWorkflow }: WorkflowTabsProps) {
   const [tabs, setTabs] = useState<WorkflowTab[]>([
     {
       id: 'tab-1',
@@ -138,8 +140,44 @@ export default function WorkflowTabs({}: WorkflowTabsProps) {
     createNewTab,
   };
 
+  // 暴露给全局的API
+  const globalAPI = {
+    createNewTab,
+    importWorkflowToNewTab,
+    saveCurrentWorkflow: () => {
+      if (window.workflowEditorAPI && window.workflowEditorAPI.saveWorkflow) {
+        window.workflowEditorAPI.saveWorkflow();
+      }
+    },
+    saveAsCurrentWorkflow: () => {
+      if (window.workflowEditorAPI && window.workflowEditorAPI.saveAsWorkflow) {
+        window.workflowEditorAPI.saveAsWorkflow();
+      }
+    },
+    exportCurrentWorkflow: () => {
+      if (window.workflowEditorAPI && window.workflowEditorAPI.exportWorkflow) {
+        window.workflowEditorAPI.exportWorkflow();
+      }
+    },
+    canSave: () => {
+      const currentTab = activeTab;
+      return Boolean(currentTab && !currentTab.isNew);
+    },
+    getCurrentWorkflowName: () => {
+      return activeTab?.name || '';
+    },
+  };
+
+  // 将API暴露给全局
+  React.useEffect(() => {
+    window.workflowTabsAPI = globalAPI;
+    return () => {
+      delete window.workflowTabsAPI;
+    };
+  }, [globalAPI]);
+
   return (
-    <div className="h-screen flex flex-col bg-gray-900">
+    <div className="h-full flex flex-col bg-gray-900">
       {/* Tab Bar */}
       <div className="flex items-center bg-gray-800 border-b border-gray-700">
         <div className="flex flex-1 overflow-x-auto">
@@ -190,6 +228,7 @@ export default function WorkflowTabs({}: WorkflowTabsProps) {
             tabId={activeTab.id}
             initialWorkflowData={activeTab.workflowData}
             workflowName={activeTab.name}
+            onExecuteWorkflow={onExecuteWorkflow}
             workflowTabsAPI={workflowTabsAPI}
           />
         )}
