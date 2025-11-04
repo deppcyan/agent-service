@@ -44,6 +44,20 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
     }
   }, [tab.workflow, onUpdateTab, isExecuting]);
 
+  // 监听自动执行事件
+  useEffect(() => {
+    const handleAutoExecute = (event: CustomEvent) => {
+      if (event.detail.tabId === tab.id && tab.status === 'idle') {
+        executeWorkflow();
+      }
+    };
+
+    window.addEventListener('auto-execute-workflow', handleAutoExecute as EventListener);
+    return () => {
+      window.removeEventListener('auto-execute-workflow', handleAutoExecute as EventListener);
+    };
+  }, [tab.id, tab.status, executeWorkflow]);
+
   // Poll for results when we have a task ID
   useEffect(() => {
     if (!tab.taskId || tab.status !== 'running') return;

@@ -98,7 +98,7 @@ const RightSidebar = forwardRef<RightSidebarRef, RightSidebarProps>(({
     }
   }, [tabs]);
 
-  // 创建新的执行tab
+  // 创建新的执行tab并立即开始执行
   const createExecutionTab = useCallback((workflowName: string, workflow: WorkflowData) => {
     const newTab: ExecutionTab = {
       id: `tab-${Date.now()}`,
@@ -111,6 +111,15 @@ const RightSidebar = forwardRef<RightSidebarRef, RightSidebarProps>(({
     
     setTabs(prev => [...prev, newTab]);
     setActiveTabId(newTab.id);
+    
+    // 立即触发执行 - 通过设置一个标记来让ExecutionPanel自动开始执行
+    setTimeout(() => {
+      // 使用setTimeout确保tab已经被创建并渲染
+      const event = new CustomEvent('auto-execute-workflow', { 
+        detail: { tabId: newTab.id } 
+      });
+      window.dispatchEvent(event);
+    }, 100);
     
     return newTab.id;
   }, []);

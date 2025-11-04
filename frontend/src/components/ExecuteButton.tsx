@@ -20,14 +20,15 @@ export default function ExecuteButton({
     try {
       setIsExecuting(true);
       
-      // 优先使用传入的onExecute函数
+      // 直接执行workflow，而不是创建执行tab
       if (onExecute) {
+        // 创建执行tab并立即开始执行
         onExecute(workflowName, workflow);
       } else {
         console.error('No execution handler available');
       }
     } catch (e) {
-      console.error('Failed to create execution tab:', e);
+      console.error('Failed to execute workflow:', e);
     } finally {
       setIsExecuting(false);
     }
