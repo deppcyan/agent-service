@@ -138,7 +138,7 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
   const mediaUrls = result?.result ? extractUrls(result.result) : [];
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col h-full max-h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
@@ -197,9 +197,9 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {result ? (
-          <div className="h-full flex flex-col">
+          <div className="h-full overflow-y-auto">
             {/* Results section */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="p-4">
               {result.error && (
                 <div className="bg-red-900/50 border border-red-700 text-red-400 px-4 py-3 rounded mb-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -295,7 +295,7 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
 
             {/* Media section */}
             {mediaUrls.length > 0 && (
-              <div className="border-t border-gray-700 p-4 max-h-64 overflow-y-auto">
+              <div className="border-t border-gray-700 p-4">
                 <h4 className="font-semibold text-sm mb-3 text-gray-200">Generated Media</h4>
                 <div className="grid grid-cols-1 gap-3">
                   {mediaUrls.map((url, index) => {
@@ -378,7 +378,7 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+          <div className="flex items-center justify-center py-8 text-gray-500 text-sm">
             <div className="text-center">
               <div className="mb-2">Ready to execute</div>
               <div className="text-xs">Click "Execute" to start the workflow</div>

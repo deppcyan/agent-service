@@ -5,6 +5,7 @@ import RightSidebar, { type RightSidebarRef } from './RightSidebar';
 import MainMenu from './MainMenu';
 import ExecuteButton from './ExecuteButton';
 import type { WorkflowData } from '../services/api';
+import { api } from '../services/api';
 
 export default function MainLayout() {
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
@@ -165,10 +166,16 @@ export default function MainLayout() {
                 window.workflowEditorAPI.addNode(nodeType);
               }
             }}
-            onWorkflowLoad={(name: string) => {
-              // This will be handled by the active WorkflowEditor
-              if (window.workflowEditorAPI) {
-                window.workflowEditorAPI.loadWorkflow(name);
+            onWorkflowLoad={async (name: string) => {
+              // Load workflow data and create new tab
+              try {
+                const workflowData = await api.getWorkflow(name);
+                if (window.workflowTabsAPI) {
+                  window.workflowTabsAPI.importWorkflowToNewTab(name, workflowData);
+                }
+              } catch (error) {
+                console.error('Failed to load workflow:', error);
+                alert('Failed to load workflow. Please try again.');
               }
             }}
             isCollapsed={isLeftSidebarCollapsed}

@@ -87,9 +87,7 @@ const RightSidebar = forwardRef<RightSidebarRef, RightSidebarProps>(({
   }), [createExecutionTab, updateTab, closeTab]);
 
   return (
-    <div className={`bg-gray-800 border-l border-gray-700 flex flex-col transition-all duration-300 ${
-      isCollapsed ? 'w-12' : 'w-96'
-    }`}>
+    <div className={`bg-gray-800 border-l border-gray-700 flex flex-col h-full w-full transition-all duration-300`}>
       {/* Header with collapse button */}
       <div className="flex items-center justify-between p-2 border-b border-gray-700">
         {!isCollapsed && (
@@ -151,7 +149,7 @@ const RightSidebar = forwardRef<RightSidebarRef, RightSidebarProps>(({
           )}
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto min-h-0 max-h-full">
             {activeTab ? (
               <ExecutionPanel
                 key={activeTab.id}
