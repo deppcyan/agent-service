@@ -183,8 +183,67 @@ class SwitchNode(WorkflowNode):
         return outputs
 
 
+class PassThroughNode(WorkflowNode):
+    """透传节点 - 用于数据流控制和透传
+    
+    主要用途：
+    - 接收真正的数据参数和控制信号
+    - 只有当控制信号存在（非None）时才透传数据
+    - 解决SwitchNode等控制节点的输出控制问题
+    - 确保工作流的正确执行顺序
+    
+    典型使用场景：
+    SwitchNode -> PassThroughNode -> 后续节点
+    其中SwitchNode的输出作为控制信号，真正的数据通过PassThroughNode透传
+    """
+    
+    category = "control"
+    
+    def __init__(self, node_id: Optional[str] = None):
+        super().__init__(node_id)
+        
+        # 输入端口
+        self.add_input_port("data", "any", True, tooltip="要透传的真实数据")
+        self.add_input_port("control", "any", False, None, 
+                          tooltip="控制信号，当此信号存在（非None）时才透传数据")
+        self.add_input_port("pass_on_empty", "boolean", False, False,
+                          tooltip="当控制信号为空时是否仍然透传数据")
+        
+        # 输出端口
+        self.add_output_port("output", "any", tooltip="透传的数据输出")
+    
+    async def process(self) -> Dict[str, Any]:
+        """处理透传逻辑"""
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+        
+        data = self.input_values["data"]
+        control = self.input_values.get("control")
+        pass_on_empty = self.input_values.get("pass_on_empty", False)
+        
+        # 判断是否应该透传数据
+        should_pass = False
+        
+        if control is not None:
+            # 控制信号存在，透传数据
+            should_pass = True
+            logger.info("PassThroughNode: Control signal present, passing data through")
+        elif pass_on_empty:
+            # 控制信号为空但设置了pass_on_empty，仍然透传
+            should_pass = True
+            logger.info("PassThroughNode: Control signal empty but pass_on_empty=True, passing data through")
+        else:
+            # 控制信号为空且不允许空透传，阻止数据流
+            logger.info("PassThroughNode: Control signal empty and pass_on_empty=False, blocking data flow")
+        
+        return {
+            "output": data if should_pass else None
+        }
+
+
 # 使用示例：
 """
+# ===== SwitchNode 使用示例 =====
 # 创建Switch节点
 switch_node = SwitchNode(output_count=3)
 
@@ -250,4 +309,92 @@ result = await switch_node.process()
 # - "user.name": 嵌套对象字段
 # - "items.0": 数组索引访问
 # - "user.addresses.0.city": 复杂嵌套路径
+
+
+# ===== PassThroughNode 使用示例 =====
+
+# 场景1: 与SwitchNode配合使用
+# 创建工作流节点
+switch_node = SwitchNode(output_count=2)
+passthrough_node = PassThroughNode()
+
+# 原始数据（真正要处理的数据）
+original_data = {
+    "user_id": 12345,
+    "action": "purchase",
+    "amount": 100.0,
+    "timestamp": "2024-01-01T10:00:00Z"
+}
+
+# Switch节点配置
+switch_node.input_values = {
+    "data": {"user_type": "premium"},  # 用于路由判断的数据
+    "rules": [
+        {
+            "field": "user_type",
+            "operator": "equals",
+            "value": "premium",
+            "output_index": 0
+        }
+    ],
+    "mode": "first_match"
+}
+
+# 执行Switch节点
+switch_result = await switch_node.process()
+# switch_result = {
+#     "output_0": {"user_type": "premium"},  # 匹配的输出
+#     "output_1": None,
+#     "fallback": None
+# }
+
+# PassThrough节点配置
+passthrough_node.input_values = {
+    "data": original_data,  # 真正要透传的数据
+    "control": switch_result["output_0"],  # Switch节点的输出作为控制信号
+    "pass_on_empty": False
+}
+
+# 执行PassThrough节点
+passthrough_result = await passthrough_node.process()
+# passthrough_result = {
+#     "output": {
+#         "user_id": 12345,
+#         "action": "purchase", 
+#         "amount": 100.0,
+#         "timestamp": "2024-01-01T10:00:00Z"
+#     }
+# }
+
+# 场景2: 条件数据流控制
+passthrough_node2 = PassThroughNode()
+passthrough_node2.input_values = {
+    "data": {"message": "Hello World"},
+    "control": None,  # 无控制信号
+    "pass_on_empty": False  # 不允许空透传
+}
+
+result2 = await passthrough_node2.process()
+# result2 = {"output": None}  # 数据被阻止
+
+# 场景3: 允许空透传
+passthrough_node3 = PassThroughNode()
+passthrough_node3.input_values = {
+    "data": {"message": "Always pass"},
+    "control": None,
+    "pass_on_empty": True  # 允许空透传
+}
+
+result3 = await passthrough_node3.process()
+# result3 = {"output": {"message": "Always pass"}}  # 数据被透传
+
+# 典型工作流结构：
+# [数据源] -> [Switch节点] -> [PassThrough节点] -> [后续处理节点]
+#     |                           ^
+#     +---> [真实数据] -----------+
+#
+# 这样可以确保：
+# 1. Switch节点控制工作流走向
+# 2. 真实数据通过PassThrough节点透传
+# 3. 只有满足条件的分支才会继续执行
 """
