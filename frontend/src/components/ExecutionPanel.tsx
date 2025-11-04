@@ -74,8 +74,15 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
         if (status.status !== 'running') {
           clearInterval(pollInterval);
           
-          // Save to history when completed
+          // Save result to tab and history when completed
           if (status.status === 'completed' || status.status === 'error') {
+            // 保存结果到当前tab
+            onUpdateTab({ 
+              result: status.result,
+              error: status.error,
+              completedAt: new Date()
+            });
+            
             const historyEntry = {
               id: `history-${Date.now()}`,
               workflowName: tab.workflowName,
@@ -135,14 +142,32 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
     return [];
   };
 
-  const mediaUrls = result?.result ? extractUrls(result.result) : [];
+  // 优先使用tab中保存的结果，如果没有则使用当前result
+  const displayResult = result || (tab.result ? { 
+    status: tab.status, 
+    result: tab.result, 
+    error: tab.error 
+  } : null);
+  
+  const mediaUrls = displayResult?.result ? extractUrls(displayResult.result) : [];
 
   return (
     <div className="flex flex-col h-full max-h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-gray-200">{tab.workflowName}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-200">{tab.workflowName}</h3>
+            {/* 显示结果保存状态 */}
+            {(tab.result || tab.status === 'completed' || tab.status === 'error') && (
+              <div className="flex items-center gap-1 text-xs text-green-400 bg-green-900/20 px-2 py-1 rounded">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Results Saved
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {tab.status === 'idle' && (
               <button
@@ -196,11 +221,11 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
 
       {/* Content */}
       <div className="flex-1 overflow-hidden">
-        {result ? (
+        {displayResult ? (
           <div className="h-full overflow-y-auto">
             {/* Results section */}
             <div className="p-4">
-              {result.error && (
+              {displayResult.error && (
                 <div className="bg-red-900/50 border border-red-700 text-red-400 px-4 py-3 rounded mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -208,8 +233,8 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
                     </svg>
                     <span className="font-semibold">Workflow Error</span>
                   </div>
-                  <div className="text-sm">{result.error}</div>
-                  {Object.keys(result.result || {}).length > 0 && (
+                  <div className="text-sm">{displayResult.error}</div>
+                  {Object.keys(displayResult?.result || {}).length > 0 && (
                     <div className="mt-2 text-xs text-red-300">
                       ℹ️ Previous node results are preserved below for analysis
                     </div>
@@ -218,22 +243,22 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
               )}
 
               {/* Display all result data in a structured way */}
-              {Object.entries(result.result || {}).length > 0 && result.status === 'error' && (
+              {Object.entries(displayResult?.result || {}).length > 0 && displayResult?.status === 'error' && (
                 <div className="mb-4 bg-yellow-900/20 border border-yellow-700 text-yellow-400 px-4 py-2 rounded text-sm">
                   📋 Results from completed nodes (before error occurred):
                 </div>
               )}
               
-              {Object.entries(result.result || {}).map(([key, value]) => (
+              {Object.entries(displayResult?.result || {}).map(([key, value]) => (
                 <div key={key} className={`mb-4 border rounded-lg p-3 hover:shadow-lg transition-shadow ${
-                  result.status === 'error' 
+                  displayResult?.status === 'error' 
                     ? 'border-yellow-600 bg-yellow-900/10' 
                     : 'border-gray-700 bg-gray-800/50'
                 }`}>
                   <h4 className="font-semibold text-sm mb-2 text-gray-200">{key}</h4>
                   {typeof value === 'object' ? (
                     <div className="space-y-2">
-                      {Object.entries(value).map(([subKey, subValue]) => {
+                      {Object.entries(value || {}).map(([subKey, subValue]) => {
                         const isUrl = typeof subValue === 'string' && (subValue.startsWith('http') || subValue.startsWith('/files/'));
                         return (
                           <div key={subKey} className="ml-2">
