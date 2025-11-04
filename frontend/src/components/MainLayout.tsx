@@ -2,7 +2,6 @@ import { useState, useCallback, useRef } from 'react';
 import WorkflowTabs from './WorkflowTabs';
 import Sidebar from './Sidebar';
 import RightSidebar, { type RightSidebarRef } from './RightSidebar';
-import MainMenu from './MainMenu';
 import type { WorkflowData } from '../services/api';
 import { api } from '../services/api';
 
@@ -113,7 +112,6 @@ export default function MainLayout() {
   }, []);
 
   const canSave = window.workflowTabsAPI?.canSave() ?? false;
-  const currentWorkflowName = window.workflowTabsAPI?.getCurrentWorkflowName() ?? '';
 
   // 获取当前workflow数据
   const getCurrentWorkflow = useCallback((): WorkflowData => {
@@ -127,17 +125,57 @@ export default function MainLayout() {
     <div className="h-screen flex flex-col bg-gray-900 text-gray-100">
       {/* Top Menu Bar */}
       <div className="flex items-center justify-between p-3 bg-gray-800 border-b border-gray-700 z-10">
-        <div className="flex items-center gap-4">
-          <MainMenu
-            onNew={handleNewWorkflow}
-            onImport={handleImportWorkflow}
-            onSave={handleSaveWorkflow}
-            onSaveAs={handleSaveAsWorkflow}
-            onExport={handleExportWorkflow}
-            canSave={canSave}
-            currentWorkflowName={currentWorkflowName}
-          />
-          {/* Execute button to the right of File menu */}
+        <div className="flex items-center gap-2">
+          {/* Individual menu buttons */}
+          <button
+            onClick={handleNewWorkflow}
+            className="px-3 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded transition-colors text-sm"
+            title="New Workflow (Ctrl+N)"
+          >
+            New
+          </button>
+          
+          <button
+            onClick={handleImportWorkflow}
+            className="px-3 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded transition-colors text-sm"
+            title="Import Workflow (Ctrl+O)"
+          >
+            Import
+          </button>
+          
+          <button
+            onClick={handleSaveWorkflow}
+            disabled={!canSave}
+            className={`px-3 py-2 rounded transition-colors text-sm ${
+              canSave 
+                ? 'text-gray-300 hover:bg-gray-700 hover:text-white' 
+                : 'text-gray-500 cursor-not-allowed'
+            }`}
+            title="Save Workflow (Ctrl+S)"
+          >
+            Save
+          </button>
+          
+          <button
+            onClick={handleSaveAsWorkflow}
+            className="px-3 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded transition-colors text-sm"
+            title="Save As (Ctrl+Shift+S)"
+          >
+            Save As
+          </button>
+          
+          <button
+            onClick={handleExportWorkflow}
+            className="px-3 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded transition-colors text-sm"
+            title="Export Workflow (Ctrl+E)"
+          >
+            Export
+          </button>
+
+          {/* Separator */}
+          <div className="w-px h-6 bg-gray-600 mx-2"></div>
+
+          {/* Execute button */}
           {window.workflowTabsAPI?.getCurrentWorkflowName() && (
             <button
               onClick={() => {
@@ -147,7 +185,7 @@ export default function MainLayout() {
                   handleExecuteWorkflow(workflowName, workflow);
                 }
               }}
-              className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-sm"
               title="Execute Workflow"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
