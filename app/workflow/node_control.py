@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from app.workflow.base import WorkflowNode
 from app.utils.logger import logger
+import re
+import operator
 
 T = TypeVar('T')  # 输入项的类型
 R = TypeVar('R')  # 结果项的类型
