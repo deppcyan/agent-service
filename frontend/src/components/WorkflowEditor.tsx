@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, useEffect } from 'react';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -8,7 +8,6 @@ import ReactFlow, {
   useNodesState,
   Handle,
   Position,
-  Panel,
   ReactFlowProvider,
   useReactFlow,
   useUpdateNodeInternals,
@@ -22,10 +21,13 @@ import type {
 } from 'reactflow';
 import type { WorkflowData, NodeType } from '../services/api';
 import { api } from '../services/api';
-import ExecuteWorkflowButton from './ExecuteWorkflowDialog';
+import ExecuteButton from './ExecuteButton';
 import NodePropertiesDialog from './NodePropertiesDialog';
 import Sidebar from './Sidebar';
 import SaveAsDialog from './SaveAsDialog';
+import MainMenu from './MainMenu';
+import RightSidebar, { type RightSidebarRef } from './RightSidebar';
+import type { WorkflowTab } from './WorkflowTabs';
 
 interface Connection {
   from_node: string;
@@ -34,7 +36,18 @@ interface Connection {
   to_port: string;
 }
 
-interface WorkflowEditorProps {}
+interface WorkflowEditorProps {
+  tabId: string;
+  initialWorkflowData: WorkflowData | null;
+  workflowName: string;
+  workflowTabsAPI: {
+    updateCurrentTab: (updates: Partial<WorkflowTab>) => void;
+    loadWorkflowToCurrentTab: (name: string, workflowData: WorkflowData) => void;
+    importWorkflowToNewTab: (name: string, workflowData: WorkflowData) => void;
+    getCurrentTab: () => WorkflowTab | undefined;
+    createNewTab: () => void;
+  };
+}
 
 // 自定义节点组件
 interface CustomNodeProps extends NodeProps {
@@ -346,15 +359,50 @@ interface ContextMenu {
   type: 'edge' | 'node';
 }
 
-const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
+const WorkflowEditorContent = ({ 
+  initialWorkflowData, 
+  workflowName, 
+  workflowTabsAPI 
+}: WorkflowEditorProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
-  const [currentWorkflowName, setCurrentWorkflowName] = useState<string | null>(null);
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(true);
+  const rightSidebarRef = useRef<RightSidebarRef>(null);
   const { screenToFlowPosition } = useReactFlow();
+
+  // Load initial workflow data
+  useEffect(() => {
+    if (initialWorkflowData) {
+      const loadInitialData = async () => {
+        try {
+          const flowData = await transformWorkflowToFlow(initialWorkflowData);
+          setNodes(flowData.nodes);
+          setEdges(flowData.edges);
+        } catch (error) {
+          console.error('Failed to load initial workflow data:', error);
+        }
+      };
+      loadInitialData();
+    }
+  }, [initialWorkflowData, setNodes, setEdges]);
+
+  // Mark tab as dirty when workflow changes
+  useEffect(() => {
+    const currentTab = workflowTabsAPI.getCurrentTab();
+    if (currentTab && (nodes.length > 0 || edges.length > 0)) {
+      const currentWorkflow = transformFlowToWorkflow(nodes, edges);
+      const hasChanges = JSON.stringify(currentWorkflow) !== JSON.stringify(initialWorkflowData);
+      
+      if (hasChanges !== currentTab.isDirty) {
+        workflowTabsAPI.updateCurrentTab({ isDirty: hasChanges });
+      }
+    }
+  }, [nodes, edges, initialWorkflowData, workflowTabsAPI]);
+
 
   // 计算节点的执行顺序
   const calculateNodeOrder = (nodes: Record<string, any>, connections: Connection[]) => {
@@ -544,8 +592,13 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
     };
   };
 
-  // 打开本地workflow文件
-  const openWorkflow = useCallback(async () => {
+  // 创建新的workflow tab (delegate to parent)
+  const createNewWorkflow = useCallback(() => {
+    workflowTabsAPI.createNewTab();
+  }, [workflowTabsAPI]);
+
+  // 导入workflow文件到新tab
+  const importWorkflow = useCallback(async () => {
     try {
       // 创建一个隐藏的文件输入元素
       const input = document.createElement('input');
@@ -560,9 +613,8 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
         reader.onload = async (e) => {
           try {
             const data = JSON.parse(e.target?.result as string);
-            const flowData = await transformWorkflowToFlow(data);
-            setNodes(flowData.nodes);
-            setEdges(flowData.edges);
+            const fileName = file.name.replace('.json', '');
+            workflowTabsAPI.importWorkflowToNewTab(fileName, data);
           } catch (error) {
             console.error('Failed to parse workflow file:', error);
             alert('Failed to parse workflow file. Please make sure it is a valid JSON file.');
@@ -573,15 +625,16 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
 
       input.click();
     } catch (error) {
-      console.error('Failed to open workflow:', error);
+      console.error('Failed to import workflow:', error);
     }
-  }, [setNodes, setEdges]);
+  }, [workflowTabsAPI]);
 
   // 保存workflow到服务器
   const saveWorkflow = useCallback(async (name?: string) => {
     try {
       const workflowData = transformFlowToWorkflow(nodes, edges);
-      const saveName = name || currentWorkflowName;
+      const currentTab = workflowTabsAPI.getCurrentTab();
+      const saveName = name || (currentTab?.isNew ? undefined : currentTab?.name);
       
       if (!saveName) {
         setShowSaveAsDialog(true);
@@ -589,13 +642,18 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
       }
       
       await api.saveWorkflow(saveName, workflowData);
-      setCurrentWorkflowName(saveName);
+      workflowTabsAPI.updateCurrentTab({
+        name: saveName,
+        workflowData,
+        isDirty: false,
+        isNew: false,
+      });
       alert('Workflow saved successfully!');
     } catch (error) {
       console.error('Failed to save workflow:', error);
       alert('Failed to save workflow. Please try again.');
     }
-  }, [nodes, edges, currentWorkflowName]);
+  }, [nodes, edges, workflowTabsAPI]);
 
   // 导出workflow到本地文件
   const exportWorkflow = useCallback(() => {
@@ -606,7 +664,7 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
       
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${currentWorkflowName || 'workflow'}.json`;
+      link.download = `${workflowName || 'workflow'}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -614,21 +672,18 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
     } catch (error) {
       console.error('Failed to export workflow:', error);
     }
-  }, [nodes, edges, currentWorkflowName]);
+  }, [nodes, edges, workflowName]);
 
   // 加载服务器端的workflow
   const loadWorkflow = useCallback(async (name: string) => {
     try {
       const data = await api.getWorkflow(name);
-      const flowData = await transformWorkflowToFlow(data);
-      setNodes(flowData.nodes);
-      setEdges(flowData.edges);
-      setCurrentWorkflowName(name);
+      workflowTabsAPI.loadWorkflowToCurrentTab(name, data);
     } catch (error) {
       console.error('Failed to load workflow:', error);
       alert('Failed to load workflow. Please try again.');
     }
-  }, [setNodes, setEdges]);
+  }, [workflowTabsAPI]);
 
   // 处理连接变化
   const onConnect = useCallback(
@@ -848,12 +903,64 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
   // 缓存 workflow 对象以避免重复执行
   const workflow = useMemo(() => transformFlowToWorkflow(nodes, edges), [nodes, edges]);
 
+  // Add keyboard shortcuts for menu actions
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'o':
+            e.preventDefault();
+            importWorkflow();
+            break;
+          case 's':
+            e.preventDefault();
+            if (e.shiftKey) {
+              setShowSaveAsDialog(true);
+            } else {
+              saveWorkflow();
+            }
+            break;
+          case 'e':
+            e.preventDefault();
+            exportWorkflow();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [importWorkflow, saveWorkflow, exportWorkflow]);
+
   // 自定义连线样式
   const edgeStyles = {
     stroke: '#6366f1', // Indigo-500
     strokeWidth: 2,
     animated: true,
   };
+
+  // 保存执行历史
+  const handleSaveHistory = useCallback((execution: any) => {
+    // Handle execution history if needed
+    console.log('Execution completed:', execution);
+  }, []);
+
+  // 处理workflow执行
+  const handleExecuteWorkflow = useCallback((workflowName: string, workflow: WorkflowData) => {
+    if (rightSidebarRef.current) {
+      rightSidebarRef.current.createExecutionTab(workflowName, workflow);
+      // 如果右侧边栏是折叠的，展开它
+      if (isRightSidebarCollapsed) {
+        setIsRightSidebarCollapsed(false);
+      }
+    } else {
+      console.error('Right sidebar ref not available');
+    }
+  }, [isRightSidebarCollapsed]);
+
+  // 获取当前tab信息
+  const currentTab = workflowTabsAPI.getCurrentTab();
+  const canSave = Boolean(currentTab && !currentTab.isNew);
 
   return (
     <div className="h-screen w-full flex bg-gray-900 text-gray-100">
@@ -868,131 +975,136 @@ const WorkflowEditorContent = ({}: WorkflowEditorProps) => {
         }}
         onWorkflowLoad={loadWorkflow}
       />
-      <div className="flex-1">
-        <Panel position="top-right" className="flex gap-2">
-          <button
-            onClick={openWorkflow}
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-          >
-            Import
-          </button>
-          <button
-            onClick={() => saveWorkflow()}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            disabled={!currentWorkflowName}
-          >
-            Save
-          </button>
-          <button
-            onClick={() => setShowSaveAsDialog(true)}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Save As
-          </button>
-          <button
-            onClick={exportWorkflow}
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-          >
-            Export
-          </button>
-          <ExecuteWorkflowButton
-            workflow={workflow}
-          />
-        </Panel>
+      <div className="flex-1 flex flex-col">
+        {/* Top Menu Bar */}
+        <div className="flex items-center justify-between p-2 bg-gray-800 border-b border-gray-700">
+          <div className="flex items-center gap-4">
+            <MainMenu
+              onNew={createNewWorkflow}
+              onImport={importWorkflow}
+              onSave={() => saveWorkflow()}
+              onSaveAs={() => setShowSaveAsDialog(true)}
+              onExport={exportWorkflow}
+              canSave={canSave}
+              currentWorkflowName={workflowName}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <ExecuteButton
+              workflow={workflow}
+              workflowName={workflowName}
+              onExecute={handleExecuteWorkflow}
+            />
+          </div>
+        </div>
 
-        <ReactFlow
-          nodes={nodes}
-          edges={edges.map(edge => ({
-            ...edge,
-            ...edgeStyles,
-            className: edge.id === selectedEdge ? 'selected-edge' : '',
-            animated: edge.id === selectedEdge,
-            style: {
-              ...edgeStyles,
-              stroke: edge.id === selectedEdge ? '#818cf8' : '#6366f1', // Lighter color when selected
-            }
-          }))}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodesDelete={onNodesDelete}
-          onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
-          onEdgeMouseEnter={onEdgeMouseEnter}
-          onEdgeMouseLeave={onEdgeMouseLeave}
-          onPaneClick={onPaneClick}
-          nodeTypes={nodeTypes}
-          connectionMode={ConnectionMode.Loose}
-          minZoom={0.1}
-          maxZoom={4}
-          fitView
+        {/* Main Content */}
+        <div className="flex-1 flex">
+          <div className="flex-1">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges.map(edge => ({
+                ...edge,
+                ...edgeStyles,
+                className: edge.id === selectedEdge ? 'selected-edge' : '',
+                animated: edge.id === selectedEdge,
+                style: {
+                  ...edgeStyles,
+                  stroke: edge.id === selectedEdge ? '#818cf8' : '#6366f1', // Lighter color when selected
+                }
+              }))}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodesDelete={onNodesDelete}
+              onNodeClick={onNodeClick}
+              onEdgeClick={onEdgeClick}
+              onEdgeMouseEnter={onEdgeMouseEnter}
+              onEdgeMouseLeave={onEdgeMouseLeave}
+              onPaneClick={onPaneClick}
+              nodeTypes={nodeTypes}
+              connectionMode={ConnectionMode.Loose}
+              minZoom={0.1}
+              maxZoom={4}
+              fitView
+            >
+              <Background color="#4b5563" gap={16} />
+              <Controls 
+                className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-900 [&>button]:!text-gray-400 [&>button]:!border-gray-700 
+                  [&>button:hover]:!bg-gray-700 [&>button:hover]:!text-gray-200"
+              />
+            </ReactFlow>
+          </div>
+
+          {/* Right Sidebar */}
+          <RightSidebar
+            ref={rightSidebarRef}
+            isCollapsed={isRightSidebarCollapsed}
+            onToggleCollapse={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+            onSaveHistory={handleSaveHistory}
+          />
+        </div>
+      </div>
+
+      {/* Dialogs and Overlays */}
+      {selectedNode && (
+        <NodePropertiesDialog
+          isOpen={true}
+          onClose={() => setSelectedNode(null)}
+          node={selectedNode}
+          onUpdate={onNodeUpdate}
+        />
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-gray-800 rounded-lg shadow-lg py-2 z-50 border border-gray-700"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
         >
-          <Background color="#4b5563" gap={16} />
-          <Controls 
-            className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-900 [&>button]:!text-gray-400 [&>button]:!border-gray-700 
-              [&>button:hover]:!bg-gray-700 [&>button:hover]:!text-gray-200"
-          />
-        </ReactFlow>
-
-        {selectedNode && (
-          <NodePropertiesDialog
-            isOpen={true}
-            onClose={() => setSelectedNode(null)}
-            node={selectedNode}
-            onUpdate={onNodeUpdate}
-          />
-        )}
-
-        {/* Context Menu */}
-        {contextMenu && (
-          <div
-            className="fixed bg-gray-800 rounded-lg shadow-lg py-2 z-50 border border-gray-700"
-            style={{
-              left: contextMenu.x,
-              top: contextMenu.y,
-            }}
-          >
-            {contextMenu.type === 'edge' ? (
+          {contextMenu.type === 'edge' ? (
+            <button
+              className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300"
+              onClick={() => onEdgeDelete(contextMenu.id)}
+            >
+              Delete Connection
+            </button>
+          ) : (
+            <>
+              <button
+                className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white"
+                onClick={() => {
+                  const node = nodes.find(n => n.id === contextMenu.id);
+                  if (node) setSelectedNode(node);
+                  setContextMenu(null);
+                }}
+              >
+                Edit Node
+              </button>
               <button
                 className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300"
-                onClick={() => onEdgeDelete(contextMenu.id)}
+                onClick={() => {
+                  setNodes(nodes => nodes.filter(n => n.id !== contextMenu.id));
+                  setContextMenu(null);
+                }}
               >
-                Delete Connection
+                Delete Node
               </button>
-            ) : (
-              <>
-                <button
-                  className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700 hover:text-white"
-                  onClick={() => {
-                    const node = nodes.find(n => n.id === contextMenu.id);
-                    if (node) setSelectedNode(node);
-                    setContextMenu(null);
-                  }}
-                >
-                  Edit Node
-                </button>
-                <button
-                  className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300"
-                  onClick={() => {
-                    setNodes(nodes => nodes.filter(n => n.id !== contextMenu.id));
-                    setContextMenu(null);
-                  }}
-                >
-                  Delete Node
-                </button>
-              </>
-            )}
-          </div>
-        )}
+            </>
+          )}
+        </div>
+      )}
 
-        {/* Save As Dialog */}
-        <SaveAsDialog
-          isOpen={showSaveAsDialog}
-          onClose={() => setShowSaveAsDialog(false)}
-          onSave={(name) => saveWorkflow(name)}
-          currentName={currentWorkflowName || ''}
-        />
-      </div>
+      {/* Save As Dialog */}
+      <SaveAsDialog
+        isOpen={showSaveAsDialog}
+        onClose={() => setShowSaveAsDialog(false)}
+        onSave={(name) => saveWorkflow(name)}
+        currentName={workflowName}
+      />
     </div>
   );
 };

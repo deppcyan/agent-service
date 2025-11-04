@@ -1,10 +1,10 @@
-import WorkflowEditor from './components/WorkflowEditor';
+import WorkflowTabs from './components/WorkflowTabs';
 
 function App() {
   return (
     <div className="h-screen flex flex-col">
       <div className="flex-1">
-        <WorkflowEditor />
+        <WorkflowTabs />
       </div>
     </div>
   );
