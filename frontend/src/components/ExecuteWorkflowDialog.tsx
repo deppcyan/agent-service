@@ -260,12 +260,17 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
                       id={`media-${url}`}
                       className="border border-gray-700 rounded-lg p-3 transition-all duration-300 bg-gray-800/50"
                     >
-                      <div className="aspect-video relative overflow-hidden rounded bg-gray-900">
+                      <div 
+                        className="aspect-video relative overflow-hidden rounded bg-gray-900 cursor-pointer group"
+                        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                        title="Click to open in new tab"
+                      >
                         {isVideo ? (
                           <video
                             controls
                             className="absolute inset-0 w-full h-full object-contain"
                             src={url}
+                            onClick={(e) => e.stopPropagation()} // Prevent parent click when using video controls
                           >
                             Your browser does not support the video tag.
                           </video>
@@ -273,8 +278,16 @@ const ExecuteWorkflowDialog = ({ taskId, onClose, onCancel }: ExecuteWorkflowDia
                           <img
                             src={url}
                             alt={`Result ${index + 1}`}
-                            className="absolute inset-0 w-full h-full object-contain"
+                            className="absolute inset-0 w-full h-full object-contain group-hover:scale-105 transition-transform duration-200"
                           />
+                        )}
+                        {/* Overlay hint for images */}
+                        {!isVideo && (
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black bg-opacity-70 text-white px-3 py-1 rounded text-sm">
+                              Click to open
+                            </div>
+                          </div>
                         )}
                       </div>
                       <div className="mt-2 flex justify-between items-center text-xs">
