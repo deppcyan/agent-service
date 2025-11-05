@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 
 from app.core.model_config import ModelConfig
-from app.utils.utils import process_image, parse_resolution, calculate_aspect_ratio
 from app.utils.logger import logger
 
 class BasePreprocessor(ABC):

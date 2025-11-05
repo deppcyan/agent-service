@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from collections import defaultdict
 from app.schemas.api import JobState, WebhookResponse
 from app.utils.logger import logger, pod_id
-from app.utils.utils import calculate_wait_time, get_service_url
+from app.utils.utils import get_service_url
 from app.workflow.executor import WorkflowExecutor
 from app.core.model_config import get_model_config
 from app.core.preprocess import preprocess_job
@@ -14,19 +14,16 @@ import aiohttp
 class JobManager:
     """Manages job queues and states"""
     
-    def __init__(self, max_concurrent_jobs: int = 5):
+    def __init__(self):
         # Job states
         self.job_states: Dict[str, JobState] = {}
         
         # Job statistics
         self.job_stats = defaultdict(int)
         
-        # Concurrency control
-        self.max_concurrent_jobs = max_concurrent_jobs
-        self.processing_semaphore = asyncio.Semaphore(max_concurrent_jobs)
-        
-        # Task tracking
-        self.active_tasks: Dict[str, asyncio.Task] = {}
+        # Processing time statistics
+        self.processing_times: List[float] = []  # Store recent processing times
+        self.max_processing_times = 10  # Keep last 10 processing times
         
         # Workflow manager
         from app.core.workflow_manager import workflow_manager
@@ -92,7 +89,7 @@ class JobManager:
         # Calculate queue stats
         current_queue_size = len([job for job in self.job_states.values() 
                                 if job.status in ['pending', 'processing']])
-        estimated_wait_time = calculate_wait_time(self.job_states)
+        estimated_wait_time = self.calculate_wait_time()
         
         return {
             "id": task_id,
@@ -105,6 +102,28 @@ class JobManager:
     def get_job_state(self, job_id: str) -> Optional[JobState]:
         """Get current state of a job"""
         return self.job_states.get(job_id)
+    
+    def calculate_wait_time(self) -> float:
+        """
+        Calculate estimated wait time based on historical processing times
+        
+        Returns:
+            float: Estimated wait time in seconds
+        """
+        # Get average processing time from historical data
+        if self.processing_times:
+            avg_processing_time = sum(self.processing_times) / len(self.processing_times)
+        else:
+            # Default to 60 seconds if no historical data
+            avg_processing_time = 60.0
+        
+        # Calculate queue processing time
+        queue_processing_time = 0
+        for job_id, state in self.job_states.items():
+            if state.status in ['pending', 'processing']:
+                queue_processing_time += avg_processing_time
+        
+        return queue_processing_time
     
     async def update_job_state(self, job_id: str, updates: Dict[str, Any]) -> None:
         """Update job state and send webhook if status changes"""
@@ -125,6 +144,15 @@ class JobManager:
             # Update statistics
             if job_state.status in ['completed', 'failed']:
                 self.job_stats[job_state.status] += 1
+                
+                # Record processing time for completed jobs
+                if job_state.status == 'completed' and hasattr(job_state, 'completed_at'):
+                    processing_time = (job_state.completed_at - job_state.created_at).total_seconds()
+                    self.processing_times.append(processing_time)
+                    
+                    # Keep only the last N processing times
+                    if len(self.processing_times) > self.max_processing_times:
+                        self.processing_times = self.processing_times[-self.max_processing_times:]
     
     async def cancel_job(self, job_id: str) -> Dict[str, Any]:
         """Cancel a job in any state"""
