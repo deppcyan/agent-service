@@ -175,25 +175,21 @@ export default function MainLayout() {
           {/* Separator */}
           <div className="w-px h-6 bg-gray-600 mx-2"></div>
 
-          {/* Execute button */}
-          {window.workflowTabsAPI?.getCurrentWorkflowName() && (
-            <button
-              onClick={() => {
-                const workflow = getCurrentWorkflow();
-                const workflowName = window.workflowTabsAPI?.getCurrentWorkflowName();
-                if (workflowName) {
-                  handleExecuteWorkflow(workflowName, workflow);
-                }
-              }}
-              className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-sm"
-              title="Execute Workflow"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-              </svg>
-              <span>Execute</span>
-            </button>
-          )}
+          {/* Execute button - always show when there's a workflow */}
+          <button
+            onClick={() => {
+              const workflow = getCurrentWorkflow();
+              const workflowName = window.workflowTabsAPI?.getCurrentWorkflowName() || 'Untitled Workflow';
+              handleExecuteWorkflow(workflowName, workflow);
+            }}
+            className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-sm"
+            title="Execute Workflow"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+            </svg>
+            <span>Execute</span>
+          </button>
         </div>
         <div className="flex items-center gap-2">
           <div className="text-sm text-gray-400">
