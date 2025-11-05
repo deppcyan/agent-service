@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { NodeTypesResponse } from './nodeTypes';
 import { transformNodeTypesResponse } from './nodeTypes';
 
-const API_BASE_URL = 'http://192.168.0.238:8001/v1/workflow';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://192.168.0.238:8001/v1/workflow';
 const API_KEY = import.meta.env.VITE_DIGEN_API_KEY || (() => {
   console.warn('VITE_DIGEN_API_KEY environment variable is not set. Please set it in your .env file.');
   return 'test-key';
