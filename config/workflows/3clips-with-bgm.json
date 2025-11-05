@@ -1,0 +1,339 @@
+{
+  "nodes": {
+    "prompt": {
+      "type": "TextInputNode",
+      "inputs": {
+        "text": ""
+      },
+      "selected": false
+    },
+    "clips_count": {
+      "type": "IntInputNode",
+      "inputs": {
+        "value": 2
+      },
+      "selected": false
+    },
+    "width": {
+      "type": "IntInputNode",
+      "inputs": {
+        "value": 832
+      },
+      "selected": false
+    },
+    "height": {
+      "type": "IntInputNode",
+      "inputs": {
+        "value": 480
+      },
+      "selected": false
+    },
+    "1762172447773": {
+      "type": "IntToTextNode",
+      "inputs": {},
+      "selected": false
+    },
+    "1762232528809": {
+      "type": "TextRepeatNode",
+      "inputs": {
+        "text": null,
+        "repeat_count": 3
+      },
+      "selected": false
+    },
+    "1762172394873": {
+      "type": "TextCombinerNode",
+      "inputs": {
+        "prompt": "【输入方式】：文本描述   【延展目标】：基于上画面风格、人物外形、光影氛围、镜头语言，生成下一张分镜图，使得剧情延续  保持人物外观一致   色调光影与参考图统一   背景元素延续，不突变   构图具备电影感（景别 / 光影 / 空间层次）  镜头类型（特写 / 中景 / 远景 / 俯拍 / 跟拍 / 环绕 / 侧移 / 拉远）   镜头运动节奏（慢推 / 快切 / 手持感）    人物发色、身形不变   服饰延续衔接，不跳变   动作表情是上一个镜头的自然推进   背景环境连续递进  高清画面   电影级光影   真实材质   无噪点无畸变   可作为下一张分镜生成基础。每一段文字是连续的，没有特殊符号，没有多余的解释，每一段文字50字左右，直接输出内容。一定要生生成{text_a}段分镜，每段分镜描述独立一行。",
+        "text_a": "",
+        "text_b": "",
+        "text_c": ""
+      },
+      "selected": false
+    },
+    "1761892168401": {
+      "type": "BatchModelRequestInputNode",
+      "inputs": {
+        "urls": [],
+        "type": "image"
+      },
+      "selected": false
+    },
+    "1761906791665": {
+      "type": "QwenLLMNode",
+      "inputs": {
+        "system_prompt": "",
+        "prompt": null,
+        "max_tokens": 1500,
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "model": "DeepSeek-R1-0528-Qwen3-8B-abliterated"
+      },
+      "selected": false
+    },
+    "1761891980822": {
+      "type": "TextRemoveEmptyLinesNode",
+      "inputs": {
+        "text": "Text to clean up"
+      },
+      "selected": false
+    },
+    "1761892038378": {
+      "type": "TextSplitNode",
+      "inputs": {
+        "text": "Text to split",
+        "delimiter": "\\n",
+        "max_splits": 3
+      },
+      "selected": false
+    },
+    "1761892226380": {
+      "type": "BatchModelRequestNode",
+      "inputs": {
+        "input_list": [],
+        "prompts": [],
+        "audio_prompts": [],
+        "negative_prompts": [],
+        "width": 832,
+        "height": 480,
+        "batch_size": 1,
+        "seed": null,
+        "output_format": null,
+        "extra_options": {}
+      },
+      "selected": false
+    },
+    "1761892237158": {
+      "type": "BatchModelServiceNode",
+      "inputs": {
+        "items": [],
+        "parallel": false,
+        "continue_on_error": true,
+        "model": "qwen-edit",
+        "timeout": 500
+      },
+      "selected": false
+    },
+    "1761905021635": {
+      "type": "BatchModelRequestInputNode",
+      "inputs": {
+        "urls": [],
+        "type": "image"
+      },
+      "selected": false
+    },
+    "1761905041623": {
+      "type": "BatchModelRequestNode",
+      "inputs": {
+        "input_list": [],
+        "prompts": [],
+        "audio_prompts": [],
+        "negative_prompts": [],
+        "width": 832,
+        "height": 480,
+        "batch_size": 1,
+        "seed": null,
+        "output_format": null,
+        "extra_options": {}
+      },
+      "selected": false
+    },
+    "1761905050523": {
+      "type": "BatchModelServiceNode",
+      "inputs": {
+        "items": [],
+        "parallel": false,
+        "continue_on_error": true,
+        "model": "wan-i2v",
+        "timeout": 500
+      },
+      "selected": false
+    },
+    "1761905507881": {
+      "type": "ModelRequestInputNode",
+      "inputs": {
+        "url": null,
+        "urls": [],
+        "type": "video"
+      },
+      "selected": false
+    },
+    "concat": {
+      "type": "ModelServiceNode",
+      "inputs": {
+        "timeout": 500,
+        "model": "concat-upscale",
+        "request": null
+      },
+      "selected": true
+    },
+    "image_url": {
+      "type": "TextInputNode",
+      "inputs": {},
+      "width": 400,
+      "selected": false
+    },
+    "concat_param": {
+      "type": "ModelRequestNode",
+      "inputs": {
+        "prompt": "",
+        "audio_prompt": "",
+        "negative_prompt": "",
+        "width": 768,
+        "height": 768,
+        "batch_size": 1,
+        "extra_options": {},
+        "upload_url": [],
+        "upload_wasabi_url": []
+      },
+      "width": 400,
+      "selected": false
+    }
+  },
+  "connections": [
+    {
+      "from_node": "1761891980822",
+      "from_port": "text",
+      "to_node": "1761892038378",
+      "to_port": "text"
+    },
+    {
+      "from_node": "1761892168401",
+      "from_port": "input_list",
+      "to_node": "1761892226380",
+      "to_port": "input_list"
+    },
+    {
+      "from_node": "1761892226380",
+      "from_port": "requests",
+      "to_node": "1761892237158",
+      "to_port": "items"
+    },
+    {
+      "from_node": "1761892237158",
+      "from_port": "local_urls",
+      "to_node": "1761905021635",
+      "to_port": "urls"
+    },
+    {
+      "from_node": "1761905021635",
+      "from_port": "input_list",
+      "to_node": "1761905041623",
+      "to_port": "input_list"
+    },
+    {
+      "from_node": "1761905041623",
+      "from_port": "requests",
+      "to_node": "1761905050523",
+      "to_port": "items"
+    },
+    {
+      "from_node": "1761905050523",
+      "from_port": "local_urls",
+      "to_node": "1761905507881",
+      "to_port": "urls"
+    },
+    {
+      "from_node": "prompt",
+      "from_port": "text",
+      "to_node": "1761906791665",
+      "to_port": "prompt"
+    },
+    {
+      "from_node": "1761906791665",
+      "from_port": "content",
+      "to_node": "1761891980822",
+      "to_port": "text"
+    },
+    {
+      "from_node": "1761892038378",
+      "from_port": "segments",
+      "to_node": "1761892226380",
+      "to_port": "prompts"
+    },
+    {
+      "from_node": "1761892038378",
+      "from_port": "segments",
+      "to_node": "1761905041623",
+      "to_port": "prompts"
+    },
+    {
+      "from_node": "clips_count",
+      "from_port": "value",
+      "to_node": "1761892038378",
+      "to_port": "max_splits"
+    },
+    {
+      "from_node": "width",
+      "from_port": "value",
+      "to_node": "1761892226380",
+      "to_port": "width"
+    },
+    {
+      "from_node": "height",
+      "from_port": "value",
+      "to_node": "1761892226380",
+      "to_port": "height"
+    },
+    {
+      "from_node": "width",
+      "from_port": "value",
+      "to_node": "1761905041623",
+      "to_port": "width"
+    },
+    {
+      "from_node": "height",
+      "from_port": "value",
+      "to_node": "1761905041623",
+      "to_port": "height"
+    },
+    {
+      "from_node": "1762172394873",
+      "from_port": "combined_text",
+      "to_node": "1761906791665",
+      "to_port": "system_prompt"
+    },
+    {
+      "from_node": "clips_count",
+      "from_port": "value",
+      "to_node": "1762172447773",
+      "to_port": "value"
+    },
+    {
+      "from_node": "1762172447773",
+      "from_port": "text",
+      "to_node": "1762172394873",
+      "to_port": "text_a"
+    },
+    {
+      "from_node": "clips_count",
+      "from_port": "value",
+      "to_node": "1762232528809",
+      "to_port": "repeat_count"
+    },
+    {
+      "from_node": "1762232528809",
+      "from_port": "list",
+      "to_node": "1761892168401",
+      "to_port": "urls"
+    },
+    {
+      "from_node": "image_url",
+      "from_port": "text",
+      "to_node": "1762232528809",
+      "to_port": "text"
+    },
+    {
+      "from_node": "1761905507881",
+      "from_port": "input_list",
+      "to_node": "concat_param",
+      "to_port": "input_list"
+    },
+    {
+      "from_node": "concat_param",
+      "from_port": "request",
+      "to_node": "concat",
+      "to_port": "request"
+    }
+  ]
+}

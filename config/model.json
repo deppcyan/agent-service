@@ -1,129 +1,45 @@
 {
-    "default_model": "image2video",
+    "default_model": "3clips-with-bgm",
     "models": {
-         "image2video": {
-             "workflow_path": "config/workflows/image2video.json",
+         "3clips-with-bgm": {
+             "workflow_path": "config/workflows/3clips-with-bgm.json",
              "required_inputs": ["image"],
-             "timeout_minutes": 1,
+             "timeout_minutes": 10,
              "default_params": {
                 
              },
              "parameter_mapping": {
-                 "seed": {
-                     "node_id": "image_analysis",
-                     "input_key": "seed"
-                 },
                  "prompt": {
-                     "node_id": "image_analysis",
-                     "input_key": "prompt"
+                     "node_id": "prompt",
+                     "input_key": "text"
                  },
                  "width": {
-                    "node_id": "video_batch",
-                    "input_key": "width"
+                    "node_id": "width",
+                    "input_key": "value"
                 },
                  "height": {
-                    "node_id": "video_batch",
-                    "input_key": "height"
+                    "node_id": "height",
+                    "input_key": "value"
+                },
+                "upload_url": {
+                    "node_id": "concat_param",
+                    "input_key": "upload_url"
                 }
              },
              "input_mapping": {
                  "image": [
                     {
-                     "node_id": "image_analysis",
-                     "input_key": "image_url"
-                    },
-                    {
-                        "node_id": "storyboard_parser",
-                        "input_key": "image_url"
+                     "node_id": "image_url",
+                     "input_key": "text"
                     }
                 ]
              },
              "output_mapping": {
-                 "output_url": {
-                    "node_id": "video_concat",
-                    "output_key": "output_url"
+                 "upload_url": {
+                    "node_id": "concat",
+                    "output_key": "upload_url"
                  }
              }
-         },
-         "image2talk": {
-             "workflow_path": "config/workflows/image2talk.json",
-             "required_inputs": ["image"],
-             "timeout_minutes": 1,
-             "default_params": {
-                
-             },
-             "parameter_mapping": {
-                 "seed": {
-                     "node_id": "image_analysis",
-                     "input_key": "seed"
-                 },
-                 "prompt": {
-                     "node_id": "image_analysis",
-                     "input_key": "prompt"
-                 },
-                 "width": {
-                    "node_id": "video_batch",
-                    "input_key": "width"
-                },
-                 "height": {
-                    "node_id": "video_batch",
-                    "input_key": "height"
-                }
-             },
-             "input_mapping": {
-                 "image": [
-                    {
-                        "node_id": "storyboard_parser",
-                        "input_key": "image_url"
-                    }
-                ]
-             },
-             "output_mapping": {
-                 "output_url": {
-                    "node_id": "video_concat",
-                    "output_key": "output_url"
-                 }
-             }
-         },
-         "story_images": {
-            "workflow_path": "config/workflows/story_images.json",
-            "required_inputs": ["image"],
-            "timeout_minutes": 1,
-            "default_params": {
-               
-            },
-            "parameter_mapping": {
-                "prompt": {
-                    "node_id": "llm_prompt_generator",
-                    "input_key": "text_b"
-                },
-                "width": {
-                   "node_id": "edit_batch",
-                   "input_key": "width"
-               },
-                "height": {
-                   "node_id": "edit_batch",
-                   "input_key": "height"
-               }
-            },
-            "input_mapping": {
-                "image": [
-                   {
-                       "node_id": "image_to_list",
-                       "input_key": "text"
-                   },
-                   {
-                        "node_id": "image_analysis",
-                        "input_key": "image_url"
-                   }
-               ]
-            },
-            "output_mapping": {
-                "output_url": {
-                   "node_id": "edit_batch",
-                   "output_key": "output_urls"
-                }
-            }
-        }
+         }
     }
 }

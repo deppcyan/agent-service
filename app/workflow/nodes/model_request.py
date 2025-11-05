@@ -455,6 +455,10 @@ class ModelRequestNode(WorkflowNode):
         # 扩展选项
         self.add_input_port("extra_options", "object", False, {})
         
+        # 上传选项
+        self.add_input_port("upload_url", "array", False, [])
+        self.add_input_port("upload_wasabi_url", "array", False, [])
+        
         # 输出
         self.add_output_port("request", "object")  # 完整的请求数据
     
@@ -480,6 +484,15 @@ class ModelRequestNode(WorkflowNode):
         # 合并扩展选项
         extra_options = self.input_values.get("extra_options", {})
         options.update(extra_options)
+        
+        # 添加上传选项
+        upload_url = self.input_values.get("upload_url", [])
+        upload_wasabi_url = self.input_values.get("upload_wasabi_url", [])
+        
+        if upload_url:
+            options["upload_url"] = upload_url
+        if upload_wasabi_url:
+            options["upload_wasabi_url"] = upload_wasabi_url
         
         return options
     
