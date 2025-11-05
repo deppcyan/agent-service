@@ -59,7 +59,7 @@ async def generate(
     return await job_manager.add_job(
         model=request.model,
         input=[item.model_dump() for item in request.input],
-        webhook_url=request.webhookUrl,
+        webhook_url=request.webhook_url,
         options=request.options.model_dump()
     )
 

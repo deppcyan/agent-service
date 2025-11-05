@@ -10,8 +10,8 @@ class Options(BaseModel):
     prompt: Optional[str] = Field(None, description="Generation prompt")
     seed: Optional[int] = Field(None, description="Random seed for generation")
     duration: Optional[int] = Field(None, description="Video duration in seconds (4-10)")
-    upload_url: Optional[str] = Field(None, description="Custom AWS S3 upload URL")
-    upload_wasabi_url: Optional[str] = Field(None, description="Custom Wasabi upload URL")
+    aws_urls: Optional[List[str]] = Field(None, description="Custom AWS S3 upload URLs")
+    wasabi_urls: Optional[List[str]] = Field(None, description="Custom Wasabi upload URLs")
     resolution: Optional[str] = Field(None, description="Output resolution (e.g., '512x512')")
     crf: Optional[int] = Field(None, description="Video CRF value")
     width: Optional[int] = Field(768, description="Output width in pixels")
@@ -21,7 +21,7 @@ class GenerateRequest(BaseModel):
     model: str = Field(..., description="Model name to use")
     input: List[InputItem] = Field(..., description="List of input items")
     options: Options = Field(..., description="Generation options")
-    webhookUrl: str = Field(..., description="Webhook URL for completion notification")
+    webhook_url: str = Field(..., description="Webhook URL for completion notification")
 
 class JobResponse(BaseModel):
     id: str = Field(..., description="Job ID")
@@ -39,25 +39,25 @@ class JobState(BaseModel):
     input: List[Dict[str, Any]] = Field(..., description="Input data")
     webhook_url: str = Field(..., description="Webhook URL")
     options: Dict[str, Any] = Field(..., description="Job options")
-    output_url: Optional[str] = Field(None, description="Output S3 URL")
-    local_url: Optional[str] = Field(None, description="Local file URL")
-    output_wasabi_url: Optional[str] = Field(None, description="Output Wasabi URL")
+    aws_urls: Optional[List[str]] = Field(None, description="Output S3 URLs")
+    local_urls: Optional[List[str]] = Field(None, description="Local file URLs")
+    wasabi_urls: Optional[List[str]] = Field(None, description="Output Wasabi URLs")
     error: Optional[str] = Field(None, description="Error message if failed")
     workflow_task_id: Optional[str] = Field(None, description="Workflow task ID")
     
 
 class WebhookResponse(BaseModel):
     id: str = Field(..., description="Job ID")
-    createdAt: str = Field(..., description="Job creation time")
+    created_at: str = Field(..., description="Job creation time")
     status: str = Field(..., description="Job status")
     model: str = Field(..., description="Model name")
     input: List[InputItem] = Field(..., description="Input data")
-    webhookUrl: str = Field(..., description="Webhook URL")
+    webhook_url: str = Field(..., description="Webhook URL")
     options: Dict[str, Any] = Field(default={}, description="Job options")
     stream: bool = Field(default=True, description="Stream mode")
-    outputUrl: Optional[str] = Field(None, description="Output S3 URL")
-    localUrl: Optional[str] = Field(None, description="Local file URL")
-    outputWasabiUrl: Optional[str] = Field(None, description="Output Wasabi URL")
+    aws_urls: Optional[List[str]] = Field(None, description="Output S3 URLs")
+    local_urls: Optional[List[str]] = Field(None, description="Local file URLs")
+    wasabi_urls: Optional[List[str]] = Field(None, description="Output Wasabi URLs")
     error: Optional[str] = Field(None, description="Error message if failed")
 
 class FileInfo(BaseModel):

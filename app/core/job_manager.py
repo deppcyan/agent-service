@@ -205,16 +205,16 @@ class JobManager:
         # Prepare webhook payload
         webhook_response = WebhookResponse(
             id=job_state.id,
-            createdAt=job_state.created_at.isoformat(),
+            created_at=job_state.created_at.isoformat(),
             status=job_state.status,
             model=job_state.model,
             input=job_state.input,
-            webhookUrl=job_state.webhook_url,
+            webhook_url=job_state.webhook_url,
             options=job_state.options,
             stream=False,
-            outputUrl=job_state.output_url,
-            localUrl=job_state.local_url,
-            outputWasabiUrl=job_state.output_wasabi_url,
+            aws_urls=job_state.aws_urls,
+            local_urls=job_state.local_urls,
+            wasabi_urls=job_state.wasabi_urls,
             error=job_state.error
         )
         
@@ -279,16 +279,16 @@ class JobManager:
         if hasattr(job_state, 'webhook_url') and job_state.webhook_url:
             webhook_response = WebhookResponse(
                 id=job_state.id,
-                createdAt=job_state.created_at.isoformat(),
+                created_at=job_state.created_at.isoformat(),
                 status=status,
                 model=job_state.model,
                 input=job_state.input,
-                webhookUrl=job_state.webhook_url,
+                webhook_url=job_state.webhook_url,
                 options=job_state.options,
                 stream=False,
-                outputUrl=updates.get("output_url"),
-                localUrl=job_state.local_url,
-                outputWasabiUrl=job_state.output_wasabi_url,
+                output_url=updates.get("output_url"),
+                local_url=job_state.local_url,
+                output_wasabi_url=job_state.output_wasabi_url,
                 error=updates.get("error")
             )
             

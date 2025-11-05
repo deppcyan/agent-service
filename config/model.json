@@ -35,9 +35,9 @@
                 ]
              },
              "output_mapping": {
-                 "upload_url": {
+                 "aws_urls": {
                     "node_id": "concat",
-                    "output_key": "upload_url"
+                    "output_key": "aws_urls"
                  }
              }
          }
