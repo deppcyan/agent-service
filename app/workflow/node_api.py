@@ -20,9 +20,9 @@ class BaseDigenAPINode(WorkflowNode, ABC):
         self.service_name = service_name
             
         # Get API key from environment variable
-        self.api_key = os.getenv("DIGEN_API_KEY")
+        self.api_key = os.getenv("DIGEN_SERVICES_API_KEY")
         if not self.api_key:
-            raise ValueError("DIGEN_API_KEY environment variable not set")
+            raise ValueError("DIGEN_SERVICES_API_KEY environment variable not set")
         
     def get_api_url(self) -> str:
         """Get API URL for the service from configuration"""
