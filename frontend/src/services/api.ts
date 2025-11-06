@@ -8,6 +8,24 @@ const API_KEY = import.meta.env.VITE_DIGEN_API_KEY || (() => {
   return 'test-key';
 })();
 
+// Create axios instance with error handling
+const axiosInstance = axios.create();
+
+// Add response interceptor to handle errors properly
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.data?.detail) {
+      // Extract the specific error message from the backend
+      const customError = new Error(error.response.data.detail);
+      customError.name = 'APIError';
+      throw customError;
+    }
+    // Fallback to original error
+    throw error;
+  }
+);
+
 export interface NodePort {
   name: string;
   port_type: string;
@@ -64,7 +82,7 @@ export interface SavedWorkflowsResponse {
 export const api = {
 
   async getNodeTypes(): Promise<NodeTypesResponse> {
-    const response = await axios.get(`${API_BASE_URL}/nodes`, {
+    const response = await axiosInstance.get(`${API_BASE_URL}/nodes`, {
       headers: {
         'x-api-key': API_KEY
       }
@@ -73,7 +91,7 @@ export const api = {
   },
 
   async executeWorkflow(data: ExecuteWorkflowRequest): Promise<ExecuteWorkflowResponse> {
-    const response = await axios.post(`${API_BASE_URL}/execute`, data, {
+    const response = await axiosInstance.post(`${API_BASE_URL}/execute`, data, {
       headers: {
         'x-api-key': API_KEY
       }
@@ -82,7 +100,7 @@ export const api = {
   },
 
   async cancelWorkflow(taskId: string): Promise<{ task_id: string; status: string }> {
-    const response = await axios.post(`${API_BASE_URL}/cancel/${taskId}`, null, {
+    const response = await axiosInstance.post(`${API_BASE_URL}/cancel/${taskId}`, null, {
       headers: {
         'x-api-key': API_KEY
       }
@@ -91,7 +109,7 @@ export const api = {
   },
 
   async getWorkflowStatus(taskId: string): Promise<WorkflowStatusResponse> {
-    const response = await axios.get(`${API_BASE_URL}/status/${taskId}`, {
+    const response = await axiosInstance.get(`${API_BASE_URL}/status/${taskId}`, {
       headers: {
         'x-api-key': API_KEY
       }
@@ -100,7 +118,7 @@ export const api = {
   },
 
   async listWorkflows(): Promise<SavedWorkflowsResponse> {
-    const response = await axios.get(`${API_BASE_URL}/list`, {
+    const response = await axiosInstance.get(`${API_BASE_URL}/list`, {
       headers: {
         'x-api-key': API_KEY
       }
@@ -109,7 +127,7 @@ export const api = {
   },
 
   async getWorkflow(name: string): Promise<WorkflowData> {
-    const response = await axios.get(`${API_BASE_URL}/${name}`, {
+    const response = await axiosInstance.get(`${API_BASE_URL}/${name}`, {
       headers: {
         'x-api-key': API_KEY
       }
@@ -118,7 +136,7 @@ export const api = {
   },
 
   async saveWorkflow(name: string, workflow: WorkflowData): Promise<{ status: string; message: string }> {
-    const response = await axios.post(`${API_BASE_URL}/save`, workflow, {
+    const response = await axiosInstance.post(`${API_BASE_URL}/save`, workflow, {
       headers: {
         'x-api-key': API_KEY
       },
@@ -130,7 +148,7 @@ export const api = {
   },
 
   async deleteWorkflow(name: string): Promise<{ status: string; message: string }> {
-    const response = await axios.delete(`${API_BASE_URL}/${name}`, {
+    const response = await axiosInstance.delete(`${API_BASE_URL}/${name}`, {
       headers: {
         'x-api-key': API_KEY
       }

@@ -134,18 +134,6 @@ const RightSidebar = forwardRef<RightSidebarRef, RightSidebarProps>(({
   // 关闭tab
   const closeTab = useCallback((tabId: string) => {
     setTabs(prev => {
-      const tabToClose = prev.find(tab => tab.id === tabId);
-      
-      // 如果tab有执行结果，询问用户是否确认关闭
-      if (tabToClose && (tabToClose.result || tabToClose.status === 'completed' || tabToClose.status === 'error')) {
-        const confirmClose = window.confirm(
-          `Tab "${tabToClose.workflowName}" contains execution results. Are you sure you want to close it? The results will be lost.`
-        );
-        if (!confirmClose) {
-          return prev; // 不关闭tab
-        }
-      }
-      
       const newTabs = prev.filter(tab => tab.id !== tabId);
       
       // 如果关闭的是当前活动tab，切换到其他tab
