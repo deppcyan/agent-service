@@ -58,7 +58,7 @@ class ListIndexNode(WorkflowNode):
     def __init__(self, node_id: str = None):
         super().__init__(node_id)
         self.add_input_port("list", "array", True, tooltip="Input list to get value from")
-        self.add_input_port("index", "number", True, tooltip="Index of the element to retrieve (supports negative indices)")
+        self.add_input_port("index", "number", True, default_value=0, tooltip="Index of the element to retrieve (supports negative indices)")
         self.add_output_port("value", "any", tooltip="Value at the specified index")
         self.add_output_port("exists", "boolean", tooltip="Whether the index exists in the list")
     
@@ -67,10 +67,8 @@ class ListIndexNode(WorkflowNode):
             raise ValueError("Required inputs missing")
             
         input_list = self.input_values["list"]
-        index_value = self.input_values["index"]
-        if index_value is None:
-            raise ValueError("Index parameter is required and cannot be None")
-        index = int(index_value)
+        index_value = self.input_values.get("index", 0)
+        index = int(index_value) if index_value is not None else 0
         
         if not isinstance(input_list, list):
             raise ValueError("Input must be a list")
