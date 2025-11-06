@@ -23,7 +23,7 @@ class WorkflowManager:
         # Load built-in nodes
         node_registry.load_builtin_nodes()
 
-    def create_workflow_executor(self, workflow_config: WorkflowConfig) -> Optional[WorkflowExecutor]:
+    def create_workflow_executor(self, workflow_config: WorkflowConfig) -> WorkflowExecutor:
         """Create a workflow executor from configuration"""
         try:
             # Convert configuration to graph and create executor
@@ -33,7 +33,7 @@ class WorkflowManager:
             
         except Exception as e:
             logger.error(f"Error creating workflow executor: {str(e)}")
-            return None
+            raise
 
     async def execute_workflow(self, workflow_json: Dict[str, Any], webhook_url: Optional[str] = None) -> str:
         """Execute a workflow asynchronously with webhook callback
@@ -52,8 +52,6 @@ class WorkflowManager:
             
             # Create executor
             executor = self.create_workflow_executor(workflow_config)
-            if not executor:
-                raise Exception("Failed to create workflow executor")
             
             # Generate unique task ID
             task_id = str(uuid.uuid4())

@@ -294,6 +294,7 @@ class BatchModelRequestNode(WorkflowNode):
         
         # 高级选项
         self.add_input_port("batch_size", "number", False, 1)
+        self.add_input_port("num_frames", "number", False, None)
         self.add_input_port("seed", "number", False, None)
         self.add_input_port("output_format", "string", False, None)
         
@@ -355,6 +356,9 @@ class BatchModelRequestNode(WorkflowNode):
         }
         
         # 添加可选参数
+        if self.input_values.get("num_frames") is not None:
+            base_options["num_frames"] = self.input_values["num_frames"]
+            
         if self.input_values.get("seed") is not None:
             base_options["seed"] = self.input_values["seed"]
             
@@ -449,6 +453,7 @@ class ModelRequestNode(WorkflowNode):
         
         # 高级选项
         self.add_input_port("batch_size", "number", False, 1)
+        self.add_input_port("num_frames", "number", False, None)
         self.add_input_port("seed", "number", False, None)
         self.add_input_port("output_format", "string", False, None)
         
@@ -475,6 +480,9 @@ class ModelRequestNode(WorkflowNode):
         }
         
         # 添加可选参数
+        if self.input_values.get("num_frames") is not None:
+            options["num_frames"] = self.input_values["num_frames"]
+            
         if self.input_values.get("seed") is not None:
             options["seed"] = self.input_values["seed"]
             

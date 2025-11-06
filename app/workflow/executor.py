@@ -30,7 +30,7 @@ class WorkflowExecutor:
             return result
         except Exception as e:
             logger.error(f"Error executing node {node.node_id}: {str(e)}")
-            raise
+            raise Exception(f"Node {node.node_id}: {str(e)}") from e
     
     async def execute(self) -> Dict[str, Dict[str, Any]]:
         """Execute the entire workflow"""
