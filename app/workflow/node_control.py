@@ -68,7 +68,7 @@ class IterativeNode(WorkflowNode, ABC):
                 success=True
             )
         except Exception as e:
-            logger.error(f"Error processing item: {str(e)}")
+            logger.error(f"Error processing item: {str(e)}", extra=self.get_log_extra())
             return IterationResult(
                 input_item=item,
                 output=None,

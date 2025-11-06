@@ -42,7 +42,7 @@ class ModelServiceNode(AsyncDigenAPINode):
         if not api_url:
             raise ValueError(f"API URL not found for model '{model_name}' in current environment")
         
-        logger.debug(f"获取模型 {model_name} 的API URL: {api_url}")
+        logger.debug(f"获取模型 {model_name} 的API URL: {api_url}", extra=self.get_log_extra())
         return api_url
     
     def _prepare_request(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -58,7 +58,7 @@ class ModelServiceNode(AsyncDigenAPINode):
             "webhookUrl": self.get_callback_url()
         }
         
-        logger.debug(f"准备发送请求到模型 {model}: {request}")
+        logger.debug(f"准备发送请求到模型 {model}: {request}", extra=self.get_log_extra())
         return request
     
     async def _handle_callback(self, callback_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -77,7 +77,7 @@ class ModelServiceNode(AsyncDigenAPINode):
             }
         elif status == "failed":
             error_msg = callback_data.get("error", "Unknown error")
-            logger.error(f"Model service failed: {error_msg}")
+            logger.error(f"Model service failed: {error_msg}", extra=self.get_log_extra())
             raise Exception(error_msg)
         else:
             raise Exception(f"Unexpected status: {status}")

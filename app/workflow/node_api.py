@@ -46,16 +46,16 @@ class BaseDigenAPINode(WorkflowNode, ABC):
             url = self.get_api_url()
         
         async with aiohttp.ClientSession() as session:
-            logger.info(f"{self.service_name}: Making {method} request to {url}")
+            logger.info(f"{self.service_name}: Making {method} request to {url}", extra=self.get_log_extra())
             request_method = getattr(session, method.lower())
             async with request_method(url, headers=headers, json=data if method == "POST" else None) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    logger.error(f"{self.service_name}: Service request failed: {error_text}")
+                    logger.error(f"{self.service_name}: Service request failed: {error_text}", extra=self.get_log_extra())
                     raise Exception(f"Service call failed with status {response.status}: {error_text}")
                     
                 response_data = await response.json()
-                logger.info(f"{self.service_name}: Received response from service")
+                logger.info(f"{self.service_name}: Received response from service", extra=self.get_log_extra())
                 return response_data
 
 class AsyncDigenAPINode(BaseDigenAPINode):
@@ -105,16 +105,16 @@ class AsyncDigenAPINode(BaseDigenAPINode):
         
         # Only cancel if we have a cancel URL from the response
         if not hasattr(self, 'cancel_url') or not self.cancel_url:
-            logger.info(f"{self.service_name}: No cancel URL available, cannot cancel job {job_id}")
+            logger.info(f"{self.service_name}: No cancel URL available, cannot cancel job {job_id}", extra=self.get_log_extra())
             raise CancelledError()
         
         cancel_url = f"{self.cancel_url}/{job_id}"
         
         try:
             await self._make_request({"job_id": job_id}, method="POST", url=cancel_url)
-            logger.info(f"{self.service_name}: Successfully cancelled job {job_id}")
+            logger.info(f"{self.service_name}: Successfully cancelled job {job_id}", extra=self.get_log_extra())
         except Exception as e:
-            logger.error(f"{self.service_name}: Failed to cancel job {job_id}: {str(e)}")
+            logger.error(f"{self.service_name}: Failed to cancel job {job_id}: {str(e)}", extra=self.get_log_extra())
             # We still want to raise CancelledError even if the cancel request failed
             # This ensures the workflow knows the task was cancelled
             raise CancelledError()
@@ -146,11 +146,11 @@ class AsyncDigenAPINode(BaseDigenAPINode):
             if response.get("pod_url"):
                 pod_url = response["pod_url"].rstrip('/')
                 self.cancel_url = f"{pod_url}/cancel"
-                logger.info(f"{self.service_name}: Using cancel URL: {self.cancel_url}")
+                logger.info(f"{self.service_name}: Using cancel URL: {self.cancel_url}", extra=self.get_log_extra())
             else:
                 # No pod_url in response means no cancellation capability
                 self.cancel_url = None
-                logger.info(f"{self.service_name}: No pod_url in response, cancellation not available")
+                logger.info(f"{self.service_name}: No pod_url in response, cancellation not available", extra=self.get_log_extra())
             
             callback_manager.register_handler(
                 job_id,
@@ -160,20 +160,20 @@ class AsyncDigenAPINode(BaseDigenAPINode):
             callback_data = await callback_manager.wait_for_callback(job_id, timeout)
             
             # Handle callback data
-            logger.debug(f"{self.service_name}: Processing callback data {json.dumps(callback_data, indent=4, ensure_ascii=False)}")
+            logger.debug(f"{self.service_name}: Processing callback data {json.dumps(callback_data, indent=4, ensure_ascii=False)}", extra=self.get_log_extra())
             result = await self._handle_callback(callback_data)
             
             return result
             
         except CancelledError:
-            logger.info(f"{self.service_name}: Operation cancelled")
+            logger.info(f"{self.service_name}: Operation cancelled", extra=self.get_log_extra())
             # Only unregister and cancel if we got as far as registering (job_id exists in local scope)
             if 'job_id' in locals():
                 callback_manager.unregister_handler(job_id)
                 await self._cancel_job(job_id)
             raise
         except Exception as e:
-            logger.error(f"{self.service_name}: Error processing request: {str(e)}")
+            logger.error(f"{self.service_name}: Error processing request: {str(e)}", extra=self.get_log_extra())
             # Only unregister if we got as far as registering (job_id exists in local scope)
             if 'job_id' in locals():
                 callback_manager.unregister_handler(job_id)
@@ -205,16 +205,16 @@ class SyncDigenAPINode(BaseDigenAPINode):
         try:
             # Prepare request data
             request_data = self._prepare_request(self.input_values)
-            logger.debug(f"{self.service_name}: Prepared request data: {json.dumps(request_data, indent=4, ensure_ascii=False)}")
+            logger.debug(f"{self.service_name}: Prepared request data: {json.dumps(request_data, indent=4, ensure_ascii=False)}", extra=self.get_log_extra())
             
             # Make request
             response = await self._make_request(request_data)
-            logger.debug(f"{self.service_name}: Received response from service: {json.dumps(response, indent=4, ensure_ascii=False)}")
+            logger.debug(f"{self.service_name}: Received response from service: {json.dumps(response, indent=4, ensure_ascii=False)}", extra=self.get_log_extra())
             
             result = await self._transform_response(response)
             
             return result
             
         except Exception as e:
-            logger.error(f"{self.service_name}: Error processing request: {str(e)}")
+            logger.error(f"{self.service_name}: Error processing request: {str(e)}", extra=self.get_log_extra())
             raise

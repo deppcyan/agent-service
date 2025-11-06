@@ -85,7 +85,7 @@ class SwitchNode(WorkflowNode):
             field_value = self._get_nested_value(data, rule.field)
             
             if rule.operator not in self.OPERATORS:
-                logger.warning(f"Unsupported operator: {rule.operator}")
+                logger.warning(f"Unsupported operator: {rule.operator}", extra=self.get_log_extra())
                 return False
             
             op_func = self.OPERATORS[rule.operator]
@@ -97,7 +97,7 @@ class SwitchNode(WorkflowNode):
             return op_func(field_value, rule.value)
             
         except Exception as e:
-            logger.error(f"Error evaluating rule: {str(e)}")
+            logger.error(f"Error evaluating rule: {str(e)}", extra=self.get_log_extra())
             return False
     
     def _parse_rules(self, rules_data: Any) -> List[SwitchRule]:
@@ -109,12 +109,12 @@ class SwitchNode(WorkflowNode):
             try:
                 rules_data = json.loads(rules_data)
             except json.JSONDecodeError as e:
-                logger.error(f"Error parsing rules JSON: {str(e)}")
+                logger.error(f"Error parsing rules JSON: {str(e)}", extra=self.get_log_extra())
                 return []
         
         # 确保rules_data是列表
         if not isinstance(rules_data, list):
-            logger.error(f"Rules data must be a list, got {type(rules_data)}")
+            logger.error(f"Rules data must be a list, got {type(rules_data)}", extra=self.get_log_extra())
             return []
         
         rules = []
@@ -122,7 +122,7 @@ class SwitchNode(WorkflowNode):
             try:
                 # 确保rule_data是字典
                 if not isinstance(rule_data, dict):
-                    logger.error(f"Rule {i} must be a dictionary, got {type(rule_data)}")
+                    logger.error(f"Rule {i} must be a dictionary, got {type(rule_data)}", extra=self.get_log_extra())
                     continue
                 
                 rule = SwitchRule(
@@ -133,7 +133,7 @@ class SwitchNode(WorkflowNode):
                 )
                 rules.append(rule)
             except Exception as e:
-                logger.error(f"Error parsing rule {i}: {str(e)}")
+                logger.error(f"Error parsing rule {i}: {str(e)}", extra=self.get_log_extra())
         return rules
     
     async def process(self) -> Dict[str, Any]:
@@ -165,7 +165,7 @@ class SwitchNode(WorkflowNode):
                     outputs[output_key] = data
                     matched_outputs.add(output_key)
                     
-                    logger.info(f"SwitchNode: Rule matched, activating {output_key}")
+                    logger.info(f"SwitchNode: Rule matched, activating {output_key}", extra=self.get_log_extra())
                     
                     # 如果是first_match模式，找到第一个匹配就停止
                     if mode == "first_match":
@@ -174,11 +174,11 @@ class SwitchNode(WorkflowNode):
         # 如果没有任何匹配，使用fallback
         if not matched_outputs:
             outputs["fallback"] = data
-            logger.info("SwitchNode: No rules matched, using fallback")
+            logger.info("SwitchNode: No rules matched, using fallback", extra=self.get_log_extra())
         
         # 记录哪些输出端口被激活
         active_outputs = [k for k, v in outputs.items() if v is not None]
-        logger.info(f"SwitchNode: Active outputs: {active_outputs}")
+        logger.info(f"SwitchNode: Active outputs: {active_outputs}", extra=self.get_log_extra())
         
         return outputs
 
@@ -227,14 +227,14 @@ class PassThroughNode(WorkflowNode):
         if control is not None:
             # 控制信号存在，透传数据
             should_pass = True
-            logger.info("PassThroughNode: Control signal present, passing data through")
+            logger.info("PassThroughNode: Control signal present, passing data through", extra=self.get_log_extra())
         elif pass_on_empty:
             # 控制信号为空但设置了pass_on_empty，仍然透传
             should_pass = True
-            logger.info("PassThroughNode: Control signal empty but pass_on_empty=True, passing data through")
+            logger.info("PassThroughNode: Control signal empty but pass_on_empty=True, passing data through", extra=self.get_log_extra())
         else:
             # 控制信号为空且不允许空透传，阻止数据流
-            logger.info("PassThroughNode: Control signal empty and pass_on_empty=False, blocking data flow")
+            logger.info("PassThroughNode: Control signal empty and pass_on_empty=False, blocking data flow", extra=self.get_log_extra())
         
         return {
             "output": data if should_pass else None

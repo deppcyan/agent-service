@@ -43,7 +43,7 @@ class BatchModelServiceNode(IterativeNode):
         Returns:
             包含处理结果的字典
         """
-        logger.info(f"Processing request with options: {request_data.get('options', {})}")
+        logger.info(f"Processing request with options: {request_data.get('options', {})}", extra=self.get_log_extra())
         
         # 创建模型服务节点
         model_node = ModelServiceNode()
@@ -66,7 +66,7 @@ class BatchModelServiceNode(IterativeNode):
                 "metadata": result.get("metadata", {})
             }
         except Exception as e:
-            logger.error(f"Error processing request: {str(e)}")
+            logger.error(f"Error processing request: {str(e)}", extra=self.get_log_extra())
             raise
     
     async def process(self) -> Dict[str, Any]:
