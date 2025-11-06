@@ -23,12 +23,12 @@ class WorkflowManager:
         # Load built-in nodes
         node_registry.load_builtin_nodes()
 
-    def create_workflow_executor(self, workflow_config: WorkflowConfig) -> WorkflowExecutor:
+    def create_workflow_executor(self, workflow_config: WorkflowConfig, task_id: Optional[str] = None) -> WorkflowExecutor:
         """Create a workflow executor from configuration"""
         try:
             # Convert configuration to graph and create executor
             graph = workflow_config.to_graph()
-            executor = WorkflowExecutor(graph)
+            executor = WorkflowExecutor(graph, task_id)
             return executor
             
         except Exception as e:
@@ -50,11 +50,11 @@ class WorkflowManager:
             # Create workflow config from JSON
             workflow_config = WorkflowConfig.from_dict(workflow_json)
             
-            # Create executor
-            executor = self.create_workflow_executor(workflow_config)
-            
             # Generate unique task ID
             task_id = str(uuid.uuid4())
+            
+            # Create executor with task ID
+            executor = self.create_workflow_executor(workflow_config, task_id)
             
             # Create and store the task
             task = asyncio.create_task(self._execute_and_callback(task_id, executor, webhook_url))

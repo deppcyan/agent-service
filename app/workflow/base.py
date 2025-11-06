@@ -21,6 +21,7 @@ class WorkflowNode:
         self.output_ports: Dict[str, NodePort] = {}
         self.input_values: Dict[str, Any] = {}
         self.output_values: Dict[str, Any] = {}
+        self.task_id: Optional[str] = None  # Will be set by executor
     
     def add_input_port(self, name: str, port_type: str, required: bool = True, default_value: Any = None, options: Optional[List[Any]] = None, tooltip: Optional[str] = None):
         """Add an input port to the node"""
@@ -34,6 +35,10 @@ class WorkflowNode:
         """Process the node's inputs and return outputs"""
         raise NotImplementedError("Nodes must implement process()")
     
+    def get_log_extra(self) -> Dict[str, Any]:
+        """Get extra parameters for logging with task_id"""
+        return {'job_id': self.task_id} if self.task_id else {}
+    
     def validate_inputs(self) -> bool:
         """Validate that all required inputs are present"""
         from app.utils.logger import logger
@@ -41,7 +46,7 @@ class WorkflowNode:
         for port in self.input_ports.values():
             if port.required and port.name not in self.input_values:
                 if port.default_value is None:
-                    logger.error(f"Required input '{port.name}' is missing for node '{self.__class__.__name__}'")
+                    logger.error(f"Required input '{port.name}' is missing for node '{self.__class__.__name__}'", extra=self.get_log_extra())
                     return False
                 self.input_values[port.name] = port.default_value
         return True

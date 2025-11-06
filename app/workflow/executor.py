@@ -6,12 +6,16 @@ from app.utils.logger import logger
 class WorkflowExecutor:
     """Executes a workflow graph"""
     
-    def __init__(self, graph: WorkflowGraph):
+    def __init__(self, graph: WorkflowGraph, task_id: Optional[str] = None):
         self.graph = graph
+        self.task_id = task_id
         self.node_results: Dict[str, Dict[str, Any]] = {}
     
     async def execute_node(self, node: WorkflowNode):
         """Execute a single node"""
+        # Set task_id context for the node
+        node.task_id = self.task_id
+        
         # Get input values from connected nodes
         for conn in self.graph.connections:
             if conn.to_node == node.node_id:
@@ -23,23 +27,29 @@ class WorkflowExecutor:
         
         # Execute the node
         try:
-            logger.info(f"Executing node {node.node_id}")
+            extra = {'job_id': self.task_id} if self.task_id else {}
+            logger.info(f"Executing node {node.node_id}", extra=extra)
             result = await node.process()
             self.node_results[node.node_id] = result
-            logger.info(f"Node {node.node_id} executed successfully")
+            logger.info(f"Node {node.node_id} executed successfully", extra=extra)
             return result
         except Exception as e:
-            logger.error(f"Error executing node {node.node_id}: {str(e)}")
+            extra = {'job_id': self.task_id} if self.task_id else {}
+            logger.error(f"Error executing node {node.node_id}: {str(e)}", extra=extra)
             raise Exception(f"Node {node.node_id}: {str(e)}") from e
     
     async def execute(self) -> Dict[str, Dict[str, Any]]:
         """Execute the entire workflow"""
+        extra = {'job_id': self.task_id} if self.task_id else {}
         execution_order = self.graph.get_execution_order()
+        
+        logger.info(f"Starting workflow execution with {len(execution_order)} nodes", extra=extra)
         
         for node_id in execution_order:
             node = self.graph.nodes[node_id]
             await self.execute_node(node)
         
+        logger.info(f"Workflow execution completed successfully", extra=extra)
         return self.node_results
     
     def get_node_result(self, node_id: str) -> Optional[Dict[str, Any]]:

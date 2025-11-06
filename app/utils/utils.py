@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from PIL import Image
 import numpy as np
 from fastapi import HTTPException, Header
-from app.utils.logger import logger, pod_id, gpu_vendor, novita_region
+from app.utils.logger import logger
 
 # Global service URL
 GLOBAL_SERVICE_URL: str = None

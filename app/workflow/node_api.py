@@ -126,13 +126,13 @@ class AsyncDigenAPINode(BaseDigenAPINode):
             
         # Get timeout (callback URL is now automatically generated)
         timeout = self.input_values.get("timeout")
-        logger.info(f"{self.service_name}: Using timeout value: {timeout} seconds")
-        logger.info(f"{self.service_name}: Using callback URL: {self.get_callback_url()}")
+        logger.info(f"{self.service_name}: Using timeout value: {timeout} seconds", extra=self.get_log_extra())
+        logger.info(f"{self.service_name}: Using callback URL: {self.get_callback_url()}", extra=self.get_log_extra())
         
         try:
             # Prepare request data
             request_data = self._prepare_request(self.input_values)
-            logger.debug(f"{self.service_name}: Prepared request data: {json.dumps(request_data, indent=4, ensure_ascii=False)}")
+            logger.debug(f"{self.service_name}: Prepared request data: {json.dumps(request_data, indent=4, ensure_ascii=False)}", extra=self.get_log_extra())
             
             # Make request first to get job id
             response = await self._make_request(request_data)

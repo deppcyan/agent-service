@@ -134,7 +134,6 @@ async def get_available_nodes():
         # 只处理 app/workflow/nodes 和 custom_nodes 目录下的节点
         if not (module_path.startswith('nodes.') or module_path.startswith('custom_nodes.') or 
         module_path.startswith("app.workflow.nodes.") or module_path.startswith("app.workflow.custom_nodes.")):
-            logger.debug(f"Skipping node {node_name} from module {module_path}")
             continue
             
         try:
