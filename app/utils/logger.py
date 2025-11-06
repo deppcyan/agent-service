@@ -3,19 +3,7 @@ import os
 from logging.handlers import RotatingFileHandler
 
 # Get environment variables for service identification
-runpod_id = os.getenv('RUNPOD_POD_ID')
-if runpod_id:
-    pod_id = runpod_id
-    gpu_vendor = 'runpod'
-    novita_region = os.getenv('NOVITA_REGION')
-elif os.getenv('NOVITA_REGION'):
-    pod_id = os.getenv('HOSTNAME', 'no_pod')
-    gpu_vendor = 'novita'
-    novita_region = os.getenv('NOVITA_REGION')
-else:
-    pod_id = 'no_pod'
-    gpu_vendor = 'local'
-    novita_region = os.getenv('NOVITA_REGION')
+pod_id = os.getenv('DIGEN_SERVICE_IP', 'local')
 
 # Get service name, default to 'agent'
 service_name = os.getenv('DIGEN_SERVICE_NAME', 'agent')
@@ -30,7 +18,7 @@ class JobIdFilter(logging.Filter):
     """Custom log filter to add job_id and pod_id fields"""
     def filter(self, record):
         if not hasattr(record, 'job_id'):
-            record.job_id = 'no_job'
+            record.job_id = 'main'
         if not hasattr(record, 'pod_id'):
             record.pod_id = pod_id
         return True
