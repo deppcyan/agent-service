@@ -21,7 +21,8 @@ class ListRangeNode(WorkflowNode):
             raise ValueError("Required inputs missing")
             
         input_list = self.input_values["list"]
-        start = int(self.input_values.get("start", 0))
+        start_value = self.input_values.get("start", 0)
+        start = int(start_value) if start_value is not None else 0
         end = self.input_values.get("end")
         
         if not isinstance(input_list, list):
@@ -66,7 +67,10 @@ class ListIndexNode(WorkflowNode):
             raise ValueError("Required inputs missing")
             
         input_list = self.input_values["list"]
-        index = int(self.input_values["index"])
+        index_value = self.input_values["index"]
+        if index_value is None:
+            raise ValueError("Index parameter is required and cannot be None")
+        index = int(index_value)
         
         if not isinstance(input_list, list):
             raise ValueError("Input must be a list")
