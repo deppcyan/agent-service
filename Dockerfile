@@ -25,12 +25,6 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js and npm
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-
 # Install fluentd and its dependencies
 RUN apt-get update && apt-get install -y \
 ruby \
@@ -53,24 +47,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt --index-url https://pypi.mirrors.ustc.edu.cn/simple/
 
-# Copy frontend package files first for better Docker layer caching
-COPY frontend/package*.json ./frontend/
-WORKDIR /app/frontend
-RUN npm ci --only=production && npm install -g serve
-
-# Copy frontend source and build
-COPY frontend ./
-RUN npm run build
-
-# Switch back to app directory and copy other files
-WORKDIR /app
 COPY app app
 COPY config config
 
 COPY start.sh start.sh
 RUN mkdir -p /app/log
 
-EXPOSE 8000 3000 22
+EXPOSE 8000
 
 # Command to run the application
 CMD ["/bin/bash", "start.sh"]
