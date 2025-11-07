@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { api, type NodeType } from '../services/api';
+import { type NodeType } from '../services/api';
+import { nodesCache } from '../services/nodesCache';
 
 // Simple tooltip component
 const Tooltip = ({ children, content }: { children: React.ReactNode; content?: string }) => {
@@ -114,7 +115,7 @@ const NodePropertiesDialog = ({ isOpen, onClose, node, onUpdate }: NodePropertie
     const loadNodeType = async () => {
       try {
         setLoading(true);
-        const response = await api.getNodeTypes();
+        const response = await nodesCache.getNodeTypes();
         const type = response.nodes.find(t => t.name === node.data.type);
         if (type) {
           setNodeType(type);

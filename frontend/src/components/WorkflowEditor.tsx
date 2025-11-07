@@ -21,6 +21,7 @@ import type {
 } from 'reactflow';
 import type { WorkflowData, NodeType } from '../services/api';
 import { api } from '../services/api';
+import { nodesCache } from '../services/nodesCache';
 import NodePropertiesDialog from './NodePropertiesDialog';
 import SaveAsDialog from './SaveAsDialog';
 import type { WorkflowTab } from './WorkflowTabs';
@@ -64,7 +65,7 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
   useEffect(() => {
     const loadNodeTypeInfo = async () => {
       try {
-        const nodeTypes = await api.getNodeTypes();
+        const nodeTypes = await nodesCache.getNodeTypes();
         const nodeType = nodeTypes.nodes.find(t => t.name === data.type);
         setNodeTypeInfo(nodeType || null);
         // 节点类型信息加载完成后，更新节点内部结构
@@ -457,7 +458,7 @@ const WorkflowEditorContent = ({
     const flowEdges: Edge[] = [];
 
     // 获取所有节点类型定义
-    const nodeTypesResponse = await api.getNodeTypes();
+    const nodeTypesResponse = await nodesCache.getNodeTypes();
     const nodeTypeDefinitions = nodeTypesResponse.nodes.reduce((acc: Record<string, NodeType>, type: NodeType) => {
       acc[type.name] = type;
       return acc;
@@ -936,7 +937,7 @@ const WorkflowEditorContent = ({
   // 暴露给全局的API
   const editorAPI = {
     addNode: (nodeType: string) => {
-      api.getNodeTypes().then(nodeTypes => {
+      nodesCache.getNodeTypes().then(nodeTypes => {
         const selectedType = nodeTypes.nodes.find((t: NodeType) => t.name === nodeType);
         if (selectedType) {
           onNodeTypeSelect(selectedType);
