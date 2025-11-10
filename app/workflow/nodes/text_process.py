@@ -66,20 +66,21 @@ class TextCombinerNode(WorkflowNode):
                 "text_c": "{text_c}" in prompt
             }
             
-            # Format the prompt with the provided text values
-            combined_text = prompt.format(
-                text_a=text_a,
-                text_b=text_b,
-                text_c=text_c
-            )
+            # Replace only specific variables, not all curly braces
+            # This avoids conflicts with JSON or other curly brace usage in the prompt
+            combined_text = prompt
+            if used_vars["text_a"]:
+                combined_text = combined_text.replace("{text_a}", str(text_a))
+            if used_vars["text_b"]:
+                combined_text = combined_text.replace("{text_b}", str(text_b))
+            if used_vars["text_c"]:
+                combined_text = combined_text.replace("{text_c}", str(text_c))
             
             return {
                 "combined_text": combined_text,
                 "used_variables": used_vars
             }
             
-        except KeyError as e:
-            raise ValueError(f"Invalid variable name in prompt: {str(e)}")
         except Exception as e:
             raise Exception(f"Error combining text: {str(e)}")
 

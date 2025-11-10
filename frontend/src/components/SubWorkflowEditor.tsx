@@ -11,7 +11,7 @@ import ReactFlow, {
   useReactFlow,
   ReactFlowProvider,
 } from 'reactflow';
-import type { Node, Connection as ReactFlowConnection } from 'reactflow';
+import type { Node, Connection as ReactFlowConnection, Edge } from 'reactflow';
 import { api, type Connection } from '../services/api';
 import { nodesCache } from '../services/nodesCache';
 import type { NodeType } from '../services/api';
@@ -241,7 +241,111 @@ function SubWorkflowEditorContent({
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
   const [nodeTypesList, setNodeTypesList] = useState<NodeType[]>([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number; type: 'edge' } | null>(null);
   const { screenToFlowPosition } = useReactFlow();
+
+  // 计算节点的执行顺序（与主编辑器一致）
+  const calculateNodeOrder = (nodes: Array<{ type: string; id: string; input_values?: Record<string, any> }>, connections: Connection[]) => {
+    const nodeOrder: string[] = [];
+    const visited = new Set<string>();
+    const inDegree: Record<string, number> = {};
+    const graph: Record<string, string[]> = {};
+
+    // 初始化入度和图
+    nodes.forEach(node => {
+      inDegree[node.id] = 0;
+      graph[node.id] = [];
+    });
+
+    // 构建图和计算入度
+    connections.forEach(conn => {
+      if (graph[conn.from_node]) {
+        graph[conn.from_node].push(conn.to_node);
+        inDegree[conn.to_node] = (inDegree[conn.to_node] || 0) + 1;
+      }
+    });
+
+    // 找到所有入度为0的节点（起始节点）
+    const queue = nodes.map(n => n.id).filter(nodeId => inDegree[nodeId] === 0);
+
+    // 拓扑排序
+    while (queue.length > 0) {
+      const currentNode = queue.shift()!;
+      if (!visited.has(currentNode)) {
+        visited.add(currentNode);
+        nodeOrder.push(currentNode);
+
+        // 处理所有相邻节点
+        graph[currentNode].forEach(neighbor => {
+          inDegree[neighbor]--;
+          if (inDegree[neighbor] === 0) {
+            queue.push(neighbor);
+          }
+        });
+      }
+    }
+
+    // 添加任何剩余的节点（可能存在环）
+    nodes.forEach(node => {
+      if (!visited.has(node.id)) {
+        nodeOrder.push(node.id);
+      }
+    });
+
+    return nodeOrder;
+  };
+
+  // 计算智能节点布局位置
+  const calculateNodePositions = (nodes: Array<{ type: string; id: string; input_values?: Record<string, any> }>, connections: Connection[]) => {
+    if (nodes.length === 0) return {};
+
+    const nodeOrder = calculateNodeOrder(nodes, connections);
+    const positions: Record<string, { x: number; y: number }> = {};
+
+    // 布局参数（与主编辑器一致）
+    const baseWidth = 400; // 节点的基础宽度
+    const baseHeight = 200; // 节点的基础高度
+    const xGap = baseWidth + 100; // 水平间距 = 节点宽度 + 100px间隙
+    const yGap = baseHeight + 50; // 垂直间距 = 节点高度 + 50px间隙
+
+    // 计算节点的层级（深度）
+    const getNodeDepth = (nodeId: string): number => {
+      const incomingConnections = connections.filter(conn => conn.to_node === nodeId);
+      if (incomingConnections.length === 0) return 0;
+      
+      const parentDepths = incomingConnections.map(conn => 
+        getNodeDepth(conn.from_node)
+      );
+      return Math.max(...parentDepths) + 1;
+    };
+
+    // 计算每个层级的节点数量
+    const depthCounts = new Map<number, number>();
+    nodeOrder.forEach(nodeId => {
+      const depth = getNodeDepth(nodeId);
+      depthCounts.set(depth, (depthCounts.get(depth) || 0) + 1);
+    });
+
+    // 为每个节点计算位置
+    nodeOrder.forEach(nodeId => {
+      const nodeDepth = getNodeDepth(nodeId);
+      
+      // 计算当前节点在其层级中的位置
+      const nodesAtCurrentDepth = nodeOrder
+        .filter(nid => getNodeDepth(nid) === nodeDepth)
+        .indexOf(nodeId);
+
+      // 计算节点位置，确保同层级的节点垂直分布
+      const x = xGap * nodeDepth;
+      const totalNodesAtDepth = depthCounts.get(nodeDepth) || 1;
+      const y = (yGap * nodesAtCurrentDepth) - ((totalNodesAtDepth - 1) * yGap / 2);
+
+      positions[nodeId] = { x, y };
+    });
+
+    return positions;
+  };
 
   // 初始化节点和边
   const initialNodes: Node[] = useMemo(() => {
@@ -261,10 +365,13 @@ function SubWorkflowEditorContent({
       }];
     }
     
-    return initialSubWorkflow.nodes.map((node, index) => ({
+    // 计算智能布局位置
+    const positions = calculateNodePositions(initialSubWorkflow.nodes, initialSubWorkflow.connections);
+    
+    return initialSubWorkflow.nodes.map((node) => ({
       id: node.id,
       type: 'simple',
-      position: { x: 100 + index * 300, y: 200 },
+      position: positions[node.id] || { x: 100, y: 200 },
       data: {
         type: node.type,
         label: node.type,
@@ -386,6 +493,44 @@ function SubWorkflowEditorContent({
     [setEdges]
   );
 
+  // Handle edge click
+  const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedEdge(edge.id);
+    setContextMenu({
+      id: edge.id,
+      x: event.clientX,
+      y: event.clientY,
+      type: 'edge'
+    });
+  }, []);
+
+  // Handle edge mouse enter
+  const onEdgeMouseEnter = useCallback((_: React.MouseEvent, edge: Edge) => {
+    setSelectedEdge(edge.id);
+  }, []);
+
+  // Handle edge mouse leave
+  const onEdgeMouseLeave = useCallback(() => {
+    if (!contextMenu) {
+      setSelectedEdge(null);
+    }
+  }, [contextMenu]);
+
+  // Handle edge deletion
+  const onEdgeDelete = useCallback((edgeId: string) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edgeId));
+    setContextMenu(null);
+    setSelectedEdge(null);
+  }, [setEdges]);
+
+  // Handle background click to close context menu
+  const onPaneClick = useCallback(() => {
+    setContextMenu(null);
+    setSelectedEdge(null);
+  }, []);
+
   // 验证子工作流
   const validateWorkflow = async () => {
     if (!resultNodeId || !resultPortName) {
@@ -459,66 +604,97 @@ function SubWorkflowEditorContent({
     }
   };
 
-  // 添加节点 - 从节点类型名称
+
+  // 添加节点的回调函数
   const handleAddNode = useCallback((nodeTypeName: string) => {
+    console.log('🎯 SubWorkflow addNode called with:', nodeTypeName);
     const nodeType = nodeTypesList.find(t => t.name === nodeTypeName);
     if (!nodeType) {
       console.error('Node type not found:', nodeTypeName);
       return;
     }
     
-    // 计算屏幕中心位置对应的画布坐标
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const flowPosition = screenToFlowPosition({ x: centerX, y: centerY });
-    
-    const newId = `node_${Date.now()}`;
-    const newNode: Node = {
-      id: newId,
-      type: 'simple',
-      position: { 
-        x: flowPosition.x - 100,
-        y: flowPosition.y - 50
-      },
-      data: {
-        type: nodeType.name,
-        label: nodeType.name,
-        inputPorts: Object.keys(nodeType.input_ports) as string[],
-        outputPorts: Object.keys(nodeType.output_ports) as string[],
-        inputs: Object.fromEntries(
-          Object.entries(nodeType.input_ports).map(([key, port]) => [
-            key,
-            port.default_value !== null ? port.default_value : undefined
-          ])
-        ),
-      },
-    };
-    setNodes((nds) => [...nds, newNode]);
+    // 计算新节点的智能位置
+    setNodes((currentNodes) => {
+      const calculateNewNodePosition = () => {
+        // 如果没有现有节点，使用屏幕中心
+        if (currentNodes.length === 0) {
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          const flowPosition = screenToFlowPosition({ x: centerX, y: centerY });
+          return { x: flowPosition.x - 200, y: flowPosition.y - 100 };
+        }
+
+        // 找到最右边的节点位置
+        const rightmostX = Math.max(...currentNodes.map(node => node.position.x));
+        const baseWidth = 400;
+        const xGap = baseWidth + 100;
+        
+        // 在最右边添加新节点
+        return { x: rightmostX + xGap, y: 200 };
+      };
+
+      const position = calculateNewNodePosition();
+      const newId = `node_${Date.now()}`;
+      const newNode: Node = {
+        id: newId,
+        type: 'simple',
+        position,
+        data: {
+          type: nodeType.name,
+          label: nodeType.name,
+          inputPorts: Object.keys(nodeType.input_ports) as string[],
+          outputPorts: Object.keys(nodeType.output_ports) as string[],
+          inputs: Object.fromEntries(
+            Object.entries(nodeType.input_ports).map(([key, port]) => [
+              key,
+              port.default_value !== null ? port.default_value : undefined
+            ])
+          ),
+        },
+      };
+      return [...currentNodes, newNode];
+    });
   }, [nodeTypesList, screenToFlowPosition, setNodes]);
 
   // 暴露 API 给全局，让主界面的侧边栏可以调用
   useEffect(() => {
+    console.log('🎨 SubWorkflowEditor mounting, registering API...');
+    
     // 保存原有的 API（主工作流的）
     const originalAPI = window.workflowEditorAPI;
     
-    // 只覆盖 addNode 方法，其他方法保持不变
-    if (originalAPI) {
-      window.workflowEditorAPI = {
-        ...originalAPI,
-        addNode: handleAddNode,
-      };
-    }
+    // 创建子工作流的 API
+    const subWorkflowAPI = {
+      addNode: handleAddNode,
+      loadWorkflow: () => {
+        console.warn('loadWorkflow not available in SubWorkflowEditor');
+      },
+      // 保留原始 API 的其他方法（如果存在）
+      ...(originalAPI ? {
+        saveWorkflow: originalAPI.saveWorkflow,
+        saveAsWorkflow: originalAPI.saveAsWorkflow,
+        exportWorkflow: originalAPI.exportWorkflow,
+        getCurrentWorkflow: originalAPI.getCurrentWorkflow,
+      } : {}),
+    };
     
-    console.log('🎨 SubWorkflowEditor API registered');
+    // 立即注册子工作流 API
+    window.workflowEditorAPI = subWorkflowAPI;
+    console.log('🎨 SubWorkflowEditor API registered with addNode override');
     
     // 清理：恢复原有的 API
     return () => {
+      console.log('🎨 SubWorkflowEditor unmounting, restoring original API...');
       if (originalAPI) {
         window.workflowEditorAPI = originalAPI;
+        console.log('🎨 SubWorkflowEditor API unregistered, restored original');
+      } else {
+        delete window.workflowEditorAPI;
+        console.log('🎨 SubWorkflowEditor API unregistered, deleted global API');
       }
-      console.log('🎨 SubWorkflowEditor API unregistered');
     };
-  }, [handleAddNode]);
+  }, [handleAddNode]); // 只依赖 handleAddNode
 
   // 获取可选的结果节点（排除 ForEachItemNode）
   const selectableNodes = nodes.filter((node) => node.data.type !== 'ForEachItemNode');
@@ -630,19 +806,51 @@ function SubWorkflowEditorContent({
       <div className="flex-1">
         <ReactFlow
           nodes={nodesWithResultMark}
-          edges={edges}
+          edges={edges.map(edge => ({
+            ...edge,
+            style: {
+              stroke: edge.id === selectedEdge ? '#818cf8' : '#6366f1',
+              strokeWidth: 2,
+            },
+            className: edge.id === selectedEdge ? 'selected-edge' : '',
+            animated: edge.id === selectedEdge,
+          }))}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeDoubleClick={(_, node) => handleNodeDoubleClick(node.id)}
+          onEdgeClick={onEdgeClick}
+          onEdgeMouseEnter={onEdgeMouseEnter}
+          onEdgeMouseLeave={onEdgeMouseLeave}
+          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Loose}
+          minZoom={0.1}
+          maxZoom={4}
           fitView
         >
           <Background color="#4b5563" gap={16} />
           <Controls className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-900 [&>button]:!text-gray-400 [&>button]:!border-gray-700" />
         </ReactFlow>
       </div>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed bg-gray-800 rounded-lg shadow-lg py-2 z-50 border border-gray-700"
+          style={{
+            left: contextMenu.x,
+            top: contextMenu.y,
+          }}
+        >
+          <button
+            className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300"
+            onClick={() => onEdgeDelete(contextMenu.id)}
+          >
+            Delete Connection
+          </button>
+        </div>
+      )}
 
       {/* 节点属性对话框 */}
       {selectedNode && (

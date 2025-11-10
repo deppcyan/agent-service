@@ -99,12 +99,29 @@ class WorkflowGraph:
         if to_port not in target_node.input_ports:
             raise ValueError(f"Input port '{to_port}' not found on target node '{target_node.__class__.__name__}[{to_node}]'")
             
-        # Validate port types match (allow 'any' type to connect to/from any other type)
+        # Validate port types match
         source_type = source_node.output_ports[from_port].port_type
         target_type = target_node.input_ports[to_port].port_type
         
-        # 'any' type can connect to/from any other type
-        if source_type != target_type and source_type != "any" and target_type != "any":
+        # Type compatibility rules:
+        # 1. 'any' type can connect to/from any other type
+        # 2. 'object' type can connect to more specific types (array, string, number, boolean, etc.)
+        #    because object is a generic type that can contain these types
+        # 3. Same types can always connect
+        # 4. Other mismatches are not allowed
+        
+        if source_type == target_type:
+            # Same types always match
+            pass
+        elif source_type == "any" or target_type == "any":
+            # 'any' type can connect to/from any other type
+            pass
+        elif source_type == "object":
+            # 'object' type can connect to more specific types
+            # This allows object (which may be an array) to connect to array, etc.
+            pass
+        else:
+            # Type mismatch
             raise ValueError(f"Port types must match: {source_node.__class__.__name__}[{from_node}].{from_port}({source_type}) -> {target_node.__class__.__name__}[{to_node}].{to_port}({target_type})")
             
         # Add connection

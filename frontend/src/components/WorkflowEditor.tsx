@@ -1111,30 +1111,43 @@ const WorkflowEditorContent = ({
 
 
 
-  // 暴露给全局的API
-  const editorAPI = {
-    addNode: (nodeType: string) => {
-      nodesCache.getNodeTypes().then(nodeTypes => {
-        const selectedType = nodeTypes.nodes.find((t: NodeType) => t.name === nodeType);
-        if (selectedType) {
-          onNodeTypeSelect(selectedType);
-        }
-      });
-    },
-    loadWorkflow,
-    saveWorkflow: () => saveWorkflow(),
-    saveAsWorkflow: () => setShowSaveAsDialog(true),
-    exportWorkflow,
-    getCurrentWorkflow: () => workflow,
-  };
-
-  // 将API暴露给全局
+  // 将API暴露给全局 - 只在主工作流显示时注册
   useEffect(() => {
-    window.workflowEditorAPI = editorAPI;
-    return () => {
-      delete window.workflowEditorAPI;
+    // 如果正在编辑子工作流，不注册主工作流 API
+    if (editingSubWorkflow) {
+      console.log('🎨 MainWorkflow API registration skipped (editing subworkflow)');
+      return;
+    }
+
+    // 创建稳定的 API 对象
+    const editorAPI = {
+      addNode: (nodeType: string) => {
+        console.log('🎯 MainWorkflow addNode called with:', nodeType);
+        nodesCache.getNodeTypes().then(nodeTypes => {
+          const selectedType = nodeTypes.nodes.find((t: NodeType) => t.name === nodeType);
+          if (selectedType) {
+            onNodeTypeSelect(selectedType);
+          }
+        });
+      },
+      loadWorkflow,
+      saveWorkflow: () => saveWorkflow(),
+      saveAsWorkflow: () => setShowSaveAsDialog(true),
+      exportWorkflow,
+      getCurrentWorkflow: () => workflow,
     };
-  }, [editorAPI]);
+
+    window.workflowEditorAPI = editorAPI;
+    console.log('🎨 MainWorkflow API registered');
+    
+    return () => {
+      // 只有当前 API 是我们设置的时候才删除
+      if (window.workflowEditorAPI === editorAPI) {
+        delete window.workflowEditorAPI;
+        console.log('🎨 MainWorkflow API unregistered');
+      }
+    };
+  }, [onNodeTypeSelect, loadWorkflow, saveWorkflow, exportWorkflow, workflow, editingSubWorkflow]);
 
   // 如果正在编辑子工作流，显示子工作流编辑器
   if (editingSubWorkflow) {
