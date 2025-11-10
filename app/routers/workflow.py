@@ -332,3 +332,78 @@ async def delete_workflow(
     except Exception as e:
         logger.error(f"Error deleting workflow {workflow_name}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ForEach 子工作流验证 API
+# ============================================================================
+
+from pydantic import BaseModel
+
+class SubWorkflowNodeDef(BaseModel):
+    """子工作流节点定义"""
+    type: str
+    id: str
+    input_values: Dict[str, Any] = {}
+
+class SubWorkflowConnectionDef(BaseModel):
+    """子工作流连接定义"""
+    from_node: str
+    from_port: str
+    to_node: str
+    to_port: str
+
+class ValidateSubWorkflowRequest(BaseModel):
+    """验证子工作流请求"""
+    nodes: List[SubWorkflowNodeDef]
+    connections: List[SubWorkflowConnectionDef]
+    result_node_id: str
+    result_port_name: str
+
+@router.post("/foreach/validate")
+async def validate_foreach_subworkflow(
+    request: ValidateSubWorkflowRequest,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    验证 ForEach 子工作流配置
+    
+    用于前端在保存前验证子工作流的正确性
+    """
+    from app.workflow.registry import node_registry
+    
+    errors = []
+    warnings = []
+    
+    try:
+        # 1. 检查是否包含 ForEachItemNode
+        has_item_node = any(node.type == 'ForEachItemNode' for node in request.nodes)
+        if not has_item_node:
+            errors.append("子工作流必须包含 ForEachItemNode 作为输入")
+        
+        # 2. 检查结果节点和端口
+        result_node = next((n for n in request.nodes if n.id == request.result_node_id), None)
+        if not result_node:
+            errors.append(f"结果节点 '{request.result_node_id}' 不存在")
+        else:
+            # 验证结果端口
+            node_class = node_registry.get_node_class(result_node.type)
+            if node_class:
+                temp_node = node_class()
+                if request.result_port_name not in temp_node.output_ports:
+                    errors.append(f"结果端口 '{request.result_port_name}' 不存在")
+        
+        # 3. 检查所有节点类型是否有效
+        for node in request.nodes:
+            if not node_registry.get_node_class(node.type):
+                errors.append(f"无效的节点类型: {node.type}")
+        
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors,
+            "warnings": warnings
+        }
+        
+    except Exception as e:
+        logger.error(f"验证子工作流失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

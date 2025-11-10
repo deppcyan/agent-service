@@ -155,4 +155,19 @@ export const api = {
     });
     return response.data;
   },
+
+  // ForEach 子工作流验证
+  async validateSubWorkflow(request: {
+    nodes: Array<{ type: string; id: string; input_values?: Record<string, any> }>;
+    connections: Connection[];
+    result_node_id: string;
+    result_port_name: string;
+  }): Promise<{ valid: boolean; errors: string[]; warnings: string[] }> {
+    const response = await axiosInstance.post(`${API_BASE_URL}/foreach/validate`, request, {
+      headers: {
+        'x-api-key': API_KEY
+      }
+    });
+    return response.data;
+  },
 };

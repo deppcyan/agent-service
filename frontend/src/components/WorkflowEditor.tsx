@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, useEffect } from 'react';
+import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -24,6 +24,7 @@ import { api } from '../services/api';
 import { nodesCache } from '../services/nodesCache';
 import NodePropertiesDialog from './NodePropertiesDialog';
 import SaveAsDialog from './SaveAsDialog';
+import SubWorkflowEditor from './SubWorkflowEditor';
 import type { WorkflowTab } from './WorkflowTabs';
 
 interface Connection {
@@ -60,6 +61,9 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
   const [editValue, setEditValue] = useState(id);
   const [nodeTypeInfo, setNodeTypeInfo] = useState<NodeType | null>(null);
   const updateNodeInternals = useUpdateNodeInternals();
+  
+  // 检查是否是 ForEachNode
+  const isForEachNode = data.type === 'ForEachNode';
   
   // 加载节点类型信息
   useEffect(() => {
@@ -209,7 +213,11 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
       }}
     >
       <div 
-        className={`px-4 py-3 rounded-md bg-gray-800 transition-all duration-200 ${
+        className={`px-4 py-3 rounded-md transition-all duration-200 ${
+          isForEachNode
+            ? 'bg-purple-800/50 ring-2 ring-purple-500'
+            : 'bg-gray-800'
+        } ${
           data.selected 
             ? 'ring-2 ring-indigo-500 shadow-lg' 
             : 'ring-1 ring-gray-700'
@@ -281,6 +289,39 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
           )}
         </div>
       </div>
+      
+      {/* ForEach 特殊显示 */}
+      {isForEachNode && (
+        <div className="mb-2">
+          {data.subWorkflow ? (
+            <div className="text-xs text-green-300 bg-green-900/30 px-2 py-1 rounded">
+              ✓ 已配置子工作流 ({data.subWorkflow.nodes?.length || 0} 个节点)
+            </div>
+          ) : (
+            <div className="text-xs text-yellow-300 bg-yellow-900/30 px-2 py-1 rounded">
+              ⚠ 未配置子工作流
+            </div>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('🔘 ForEach button clicked!', { 
+                id, 
+                hasCallback: !!data.onEditSubWorkflow,
+                data: data 
+              });
+              if (data.onEditSubWorkflow) {
+                data.onEditSubWorkflow(id);
+              } else {
+                console.error('❌ onEditSubWorkflow callback not found!');
+              }
+            }}
+            className="w-full mt-2 px-3 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700"
+          >
+            {data.subWorkflow ? '✏️ 编辑子工作流' : '➕ 配置子工作流'}
+          </button>
+        </div>
+      )}
       
       <div className="grid grid-cols-2 gap-4">
         {/* 输入端口 */}
@@ -370,6 +411,14 @@ const WorkflowEditorContent = ({
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
   const { screenToFlowPosition } = useReactFlow();
+  
+  // ForEach 子工作流编辑状态
+  const [editingSubWorkflow, setEditingSubWorkflow] = useState<{
+    nodeId: string;
+    subWorkflow?: any;
+    resultNodeId?: string;
+    resultPortName?: string;
+  } | null>(null);
 
   // Load initial workflow data
   useEffect(() => {
@@ -794,6 +843,7 @@ const WorkflowEditorContent = ({
           ])
         ),
         connections: [],
+        // onEditSubWorkflow 将通过 useEffect 注入
       },
     };
     setNodes(nodes => [...nodes, newNode]);
@@ -882,6 +932,132 @@ const WorkflowEditorContent = ({
     ));
   }, [setNodes]);
 
+  // 处理编辑子工作流
+  const handleEditSubWorkflow = useCallback((nodeId: string) => {
+    console.log('🎯 handleEditSubWorkflow called with nodeId:', nodeId);
+    const node = nodes.find(n => n.id === nodeId);
+    console.log('  Found node:', node);
+    
+    if (!node) {
+      console.error('❌ Node not found!');
+      return;
+    }
+
+    const subWorkflowData = {
+      nodeId,
+      subWorkflow: node.data.subWorkflow || {
+        nodes: [{ type: 'ForEachItemNode', id: 'foreach_item' }],
+        connections: []
+      },
+      resultNodeId: node.data.resultNodeId,
+      resultPortName: node.data.resultPortName,
+    };
+    
+    console.log('  Setting editingSubWorkflow:', subWorkflowData);
+    setEditingSubWorkflow(subWorkflowData);
+  }, [nodes]);
+
+  // 保存子工作流
+  const handleSaveSubWorkflow = useCallback((
+    subWorkflow: any,
+    resultNodeId: string,
+    resultPortName: string
+  ) => {
+    if (!editingSubWorkflow) return;
+
+    // 更新节点数据
+    setNodes(nodes => nodes.map(node => 
+      node.id === editingSubWorkflow.nodeId
+        ? {
+            ...node,
+            data: {
+              ...node.data,
+              subWorkflow,
+              resultNodeId,
+              resultPortName,
+              // 更新 inputs，以便保存到后端
+              inputs: {
+                ...node.data.inputs,
+                sub_workflow: subWorkflow,
+                result_node_id: resultNodeId,
+                result_port_name: resultPortName,
+              }
+            }
+          }
+        : node
+    ));
+
+    setEditingSubWorkflow(null);
+  }, [editingSubWorkflow, setNodes]);
+
+  // 注入 onEditSubWorkflow 回调到所有节点
+  const handleEditSubWorkflowRef = useRef(handleEditSubWorkflow);
+  handleEditSubWorkflowRef.current = handleEditSubWorkflow;
+  
+  useEffect(() => {
+    console.log('🔄 Injecting onEditSubWorkflow to nodes... (nodes count:', nodes.length, ')');
+    
+    // 检查是否有 ForEachNode 需要注入回调
+    const forEachNodes = nodes.filter(n => n.data.type === 'ForEachNode');
+    console.log('  Found ForEachNode count:', forEachNodes.length);
+    
+    if (forEachNodes.length === 0) {
+      console.log('  ⏭️ No ForEachNode found, skipping injection');
+      return;
+    }
+    
+    setNodes((currentNodes) => {
+      let updated = false;
+      const updatedNodes = currentNodes.map((node) => {
+        // 只处理 ForEachNode
+        if (node.data.type !== 'ForEachNode') {
+          return node;
+        }
+        
+        // 检查是否需要更新
+        const hasCallback = !!node.data.onEditSubWorkflow;
+        const hasSubWorkflowInInputs = !!node.data.inputs?.sub_workflow;
+        const hasSubWorkflowInData = !!node.data.subWorkflow;
+        
+        console.log(`  📦 ForEachNode "${node.id}":`, {
+          hasCallback,
+          hasSubWorkflowInInputs,
+          hasSubWorkflowInData,
+          willUpdate: !hasCallback || (hasSubWorkflowInInputs && !hasSubWorkflowInData)
+        });
+        
+        // 如果已经有回调且数据已同步，跳过
+        if (hasCallback && (!hasSubWorkflowInInputs || hasSubWorkflowInData)) {
+          return node;
+        }
+        
+        updated = true;
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onEditSubWorkflow: (nodeId: string) => {
+              console.log('📞 onEditSubWorkflow called for:', nodeId);
+              handleEditSubWorkflowRef.current(nodeId);
+            },
+            // 如果节点有 sub_workflow 输入，也设置到 data 中
+            subWorkflow: node.data.inputs?.sub_workflow || node.data.subWorkflow,
+            resultNodeId: node.data.inputs?.result_node_id || node.data.resultNodeId,
+            resultPortName: node.data.inputs?.result_port_name || node.data.resultPortName,
+          },
+        };
+      });
+      
+      if (updated) {
+        console.log('✅ Injection complete - nodes updated');
+        return updatedNodes;
+      } else {
+        console.log('✅ All ForEachNodes already have callbacks');
+        return currentNodes;
+      }
+    });
+  }, [nodes.length, setNodes]); // 依赖节点数量，避免循环
+
   const nodeTypes = useMemo(() => ({
     default: (props: NodeProps) => (
       <CustomNode
@@ -891,7 +1067,7 @@ const WorkflowEditorContent = ({
         updateEdgesAfterNodeIdChange={updateEdgesAfterNodeIdChange}
       />
     ),
-  }), [setSelectedNode, setNodes]);
+  }), []); // 空依赖 - 这些 props 应该是稳定的
 
   // 缓存 workflow 对象以避免重复执行
   const workflow = useMemo(() => transformFlowToWorkflow(nodes, edges), [nodes, edges]);
@@ -958,6 +1134,20 @@ const WorkflowEditorContent = ({
       delete window.workflowEditorAPI;
     };
   }, [editorAPI]);
+
+  // 如果正在编辑子工作流，显示子工作流编辑器
+  if (editingSubWorkflow) {
+    console.log('🎨 Rendering SubWorkflowEditor with:', editingSubWorkflow);
+    return (
+      <SubWorkflowEditor
+        initialSubWorkflow={editingSubWorkflow.subWorkflow}
+        initialResultNodeId={editingSubWorkflow.resultNodeId}
+        initialResultPortName={editingSubWorkflow.resultPortName}
+        onSave={handleSaveSubWorkflow}
+        onCancel={() => setEditingSubWorkflow(null)}
+      />
+    );
+  }
 
   return (
     <div className="h-full w-full flex flex-col bg-gray-900 text-gray-100">
