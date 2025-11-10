@@ -15,6 +15,7 @@ import type { Node, Connection as ReactFlowConnection } from 'reactflow';
 import { api, type Connection } from '../services/api';
 import { nodesCache } from '../services/nodesCache';
 import type { NodeType } from '../services/api';
+import NodePropertiesDialog from './NodePropertiesDialog';
 
 interface SubWorkflowEditorProps {
   initialSubWorkflow?: {
@@ -34,72 +35,196 @@ interface SubWorkflowEditorProps {
   onCancel: () => void;
 }
 
-// 简单节点组件（用于子工作流）
+// 简单节点组件（用于子工作流）- 与主编辑器保持一致的样式
 const SimpleNode = ({ data, id }: { data: any; id: string }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(id);
   const isForEachItemNode = data.type === 'ForEachItemNode';
   
+  // 处理双击节点ID
+  const handleIdDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditValue(id);
+  };
+
+  // 处理编辑完成
+  const handleEditComplete = () => {
+    if (editValue.trim() && editValue !== id && data.onNodeIdChange) {
+      data.onNodeIdChange(id, editValue.trim());
+    }
+    setIsEditing(false);
+  };
+
+  // 处理按键事件
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleEditComplete();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditValue(id);
+    }
+  };
+  
+  // 格式化值的显示（与主编辑器一致）
+  const formatValue = (value: any): string => {
+    if (value === undefined || value === null) {
+      return '(empty)';
+    }
+    if (typeof value === 'string') {
+      return value.length > 30 ? value.substring(0, 30) + '...' : value;
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '[]';
+      if (value.length === 1) return `[${formatValue(value[0])}]`;
+      return `[${value.length} items]`;
+    }
+    if (typeof value === 'object') {
+      const keys = Object.keys(value);
+      if (keys.length === 0) return '{}';
+      return `{${keys.length} keys}`;
+    }
+    return String(value);
+  };
+
   return (
     <div 
-      className={`px-4 py-3 rounded-lg shadow-lg ${
-        isForEachItemNode 
-          ? 'bg-green-700 ring-2 ring-green-500' 
-          : data.isResultNode 
-          ? 'bg-indigo-700 ring-2 ring-indigo-400' 
-          : 'bg-gray-800 ring-1 ring-gray-700'
-      }`}
-      style={{ minWidth: 200 }}
+      className="p-2 rounded-lg transition-all duration-200 ring-1 ring-white/30 resize-node"
+      style={{
+        minWidth: data.width || 400,
+        width: data.width || 400,
+        height: 'auto',
+        position: 'relative'
+      }}
     >
-      {/* 标题 */}
-      <div className="font-bold text-sm text-white mb-2">
-        {id}
+      <div 
+        className={`px-4 py-3 rounded-md transition-all duration-200 ${
+          isForEachItemNode
+            ? 'bg-green-800/50 ring-2 ring-green-500'
+            : data.isResultNode 
+            ? 'bg-indigo-800/50 ring-2 ring-indigo-400' 
+            : 'bg-gray-800'
+        } ${
+          data.selected 
+            ? 'ring-2 ring-indigo-500 shadow-lg' 
+            : 'ring-1 ring-gray-700'
+        } cursor-pointer hover:ring-2 hover:ring-indigo-400`}
+        style={{
+          width: '100%',
+          height: '100%'
+        }}
+      >
+        <div className="font-bold text-sm mb-2 flex items-center justify-between">
+          {isEditing ? (
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleEditComplete}
+              onKeyDown={handleKeyDown}
+              className="border border-blue-500 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-gray-700 text-white"
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span 
+              onDoubleClick={handleIdDoubleClick} 
+              className="cursor-text text-gray-200 hover:text-indigo-300"
+            >
+              {id}
+            </span>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{data.type}</span>
+          </div>
+        </div>
+        
+        {/* 特殊标识 */}
+        {isForEachItemNode && (
+          <div className="mb-2">
+            <div className="text-xs text-green-300 bg-green-900/30 px-2 py-1 rounded">
+              ⭐ 循环入口节点
+            </div>
+          </div>
+        )}
+        
+        {data.isResultNode && (
+          <div className="mb-2">
+            <div className="text-xs text-indigo-300 bg-indigo-900/30 px-2 py-1 rounded">
+              🎯 结果输出节点
+            </div>
+          </div>
+        )}
+        
+        <div className="grid grid-cols-2 gap-4">
+          {/* 输入端口 */}
+          <div className="border-r border-gray-700 pr-3">
+            <div className="text-xs font-semibold text-indigo-400 mb-2">Inputs</div>
+            {data.inputPorts?.map((port: string) => {
+              // 检查是否连接
+              const isConnected = data.connections?.some((conn: any) => 
+                conn.to_node === id && conn.to_port === port
+              );
+              return (
+                <div key={`${id}-input-${port}`} className="relative mb-2 last:mb-0">
+                  <Handle
+                    type="target"
+                    position={Position.Left}
+                    id={port}
+                    isConnectable={true}
+                    className={`w-2 h-2 ${isConnected ? '!bg-green-500' : '!bg-blue-500'}`}
+                    style={{ top: '10px' }}
+                  />
+                  <div className="ml-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-gray-300">{port}:</span>
+                      <span 
+                        className="text-xs text-gray-400 truncate max-w-[120px]" 
+                        title={JSON.stringify(data.inputs?.[port], null, 2)}
+                      >
+                        {formatValue(data.inputs?.[port])}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 输出端口 */}
+          <div className="pl-3">
+            <div className="text-xs font-semibold text-indigo-400 mb-2">Outputs</div>
+            {data.outputPorts?.map((port: string) => {
+              // 检查是否连接
+              const isConnected = data.connections?.some((conn: any) => 
+                conn.from_node === id && conn.from_port === port
+              );
+              return (
+                <div key={`${id}-output-${port}`} className="relative mb-2 last:mb-0">
+                  <Handle
+                    type="source"
+                    position={Position.Right}
+                    id={port}
+                    isConnectable={true}
+                    className={`w-2 h-2 ${isConnected ? '!bg-green-500' : '!bg-blue-500'}`}
+                    style={{ top: '10px' }}
+                  />
+                  <div className="mr-3">
+                    <div className="flex items-center justify-end">
+                      <span className="text-xs font-medium text-gray-300">{port}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
-      <div className="text-xs text-gray-300 mb-2">
-        {data.type}
-      </div>
-      
-      {isForEachItemNode && (
-        <div className="text-xs text-green-300 mb-2">
-          ⭐ 循环入口
-        </div>
-      )}
-      
-      {data.isResultNode && (
-        <div className="text-xs text-indigo-300 mb-2">
-          🎯 结果节点
-        </div>
-      )}
-      
-      {/* 输入端口 */}
-      {data.inputPorts?.map((port: string) => (
-        <div key={`input-${port}`} className="relative mb-1">
-          <Handle
-            type="target"
-            position={Position.Left}
-            id={port}
-            className="w-2 h-2 !bg-blue-500"
-            style={{ top: '50%' }}
-          />
-          <div className="ml-3 text-xs text-gray-300">{port}</div>
-        </div>
-      ))}
-      
-      {/* 输出端口 */}
-      {data.outputPorts?.map((port: string) => (
-        <div key={`output-${port}`} className="relative mb-1 text-right">
-          <Handle
-            type="source"
-            position={Position.Right}
-            id={port}
-            className="w-2 h-2 !bg-blue-500"
-            style={{ top: '50%' }}
-          />
-          <div className="mr-3 text-xs text-gray-300">{port}</div>
-        </div>
-      ))}
     </div>
   );
 };
 
+// 简单的静态 nodeTypes
 const nodeTypes = {
   simple: SimpleNode,
 };
@@ -115,6 +240,7 @@ function SubWorkflowEditorContent({
   const [resultPortName, setResultPortName] = useState(initialResultPortName || '');
   const [validation, setValidation] = useState<{ valid: boolean; errors: string[]; warnings: string[] } | null>(null);
   const [nodeTypesList, setNodeTypesList] = useState<NodeType[]>([]);
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const { screenToFlowPosition } = useReactFlow();
 
   // 初始化节点和边
@@ -130,6 +256,7 @@ function SubWorkflowEditorContent({
           label: 'ForEach Item',
           inputPorts: [] as string[],
           outputPorts: ['item', 'index'] as string[],
+          inputs: {},
         },
       }];
     }
@@ -143,6 +270,7 @@ function SubWorkflowEditorContent({
         label: node.type,
         inputPorts: [] as string[],
         outputPorts: [] as string[],
+        inputs: node.input_values || {},
       },
     }));
   }, [initialSubWorkflow]);
@@ -179,6 +307,13 @@ function SubWorkflowEditorContent({
                 ...node.data,
                 inputPorts: Object.keys(nodeType.input_ports) as string[],
                 outputPorts: Object.keys(nodeType.output_ports) as string[],
+                // 确保 inputs 存在，如果不存在则初始化为默认值
+                inputs: node.data.inputs || Object.fromEntries(
+                  Object.entries(nodeType.input_ports).map(([key, port]) => [
+                    key,
+                    port.default_value !== null ? port.default_value : undefined
+                  ])
+                ),
               },
             };
           }
@@ -188,16 +323,61 @@ function SubWorkflowEditorContent({
     });
   }, [setNodes]);
 
-  // 更新结果节点标记
+  // 处理节点双击
+  const handleNodeDoubleClick = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setSelectedNode(node);
+    }
+  }, [nodes]);
+
+  // 处理节点数据更新
+  const handleNodeUpdate = useCallback((nodeId: string, newData: any) => {
+    console.log('🔄 SubWorkflow handleNodeUpdate:', { nodeId, newData });
+    setNodes(nodes => nodes.map(node => 
+      node.id === nodeId ? { ...node, data: { ...node.data, ...newData } } : node
+    ));
+  }, [setNodes]);
+
+  // 处理节点ID更改
+  const handleNodeIdChange = useCallback((oldId: string, newId: string) => {
+    // 更新节点ID
+    setNodes(nodes => nodes.map(node => 
+      node.id === oldId ? { ...node, id: newId } : node
+    ));
+    
+    // 更新边的连接
+    setEdges(edges => edges.map(edge => ({
+      ...edge,
+      source: edge.source === oldId ? newId : edge.source,
+      target: edge.target === oldId ? newId : edge.target
+    })));
+    
+    // 如果结果节点ID被更改，也要更新
+    if (resultNodeId === oldId) {
+      setResultNodeId(newId);
+    }
+  }, [setNodes, setEdges, resultNodeId]);
+
+  // 更新结果节点标记和连接信息
   const nodesWithResultMark = useMemo(() => {
     return nodes.map((node) => ({
       ...node,
       data: {
         ...node.data,
         isResultNode: node.id === resultNodeId,
+        onNodeIdChange: handleNodeIdChange,
+        connections: edges.filter(edge => 
+          edge.source === node.id || edge.target === node.id
+        ).map(edge => ({
+          from_node: edge.source,
+          from_port: edge.sourceHandle || '',
+          to_node: edge.target,
+          to_port: edge.targetHandle || '',
+        })),
       },
     }));
-  }, [nodes, resultNodeId]);
+  }, [nodes, resultNodeId, edges, handleNodeIdChange]);
 
   const onConnect = useCallback(
     (params: ReactFlowConnection) => {
@@ -222,7 +402,7 @@ function SubWorkflowEditorContent({
         nodes: nodes.map((node) => ({
           type: node.data.type,
           id: node.id,
-          input_values: {},
+          input_values: node.data.inputs || {},
         })),
         connections: edges.map((edge) => ({
           from_node: edge.source,
@@ -254,11 +434,17 @@ function SubWorkflowEditorContent({
   const handleSave = async () => {
     const isValid = await validateWorkflow();
     if (isValid) {
+      console.log('💾 SubWorkflow saving nodes with inputs:', nodes.map(n => ({ 
+        id: n.id, 
+        type: n.data.type, 
+        inputs: n.data.inputs 
+      })));
+      
       const subWorkflow = {
         nodes: nodes.map((node) => ({
           type: node.data.type,
           id: node.id,
-          input_values: {},
+          input_values: node.data.inputs || {},
         })),
         connections: edges.map((edge) => ({
           from_node: edge.source,
@@ -267,6 +453,8 @@ function SubWorkflowEditorContent({
           to_port: edge.targetHandle || '',
         })),
       };
+      
+      console.log('💾 Final subWorkflow to save:', subWorkflow);
       onSave(subWorkflow, resultNodeId, resultPortName);
     }
   };
@@ -297,6 +485,12 @@ function SubWorkflowEditorContent({
         label: nodeType.name,
         inputPorts: Object.keys(nodeType.input_ports) as string[],
         outputPorts: Object.keys(nodeType.output_ports) as string[],
+        inputs: Object.fromEntries(
+          Object.entries(nodeType.input_ports).map(([key, port]) => [
+            key,
+            port.default_value !== null ? port.default_value : undefined
+          ])
+        ),
       },
     };
     setNodes((nds) => [...nds, newNode]);
@@ -334,6 +528,8 @@ function SubWorkflowEditorContent({
     const node = nodes.find((n) => n.id === resultNodeId);
     return node?.data.outputPorts || [];
   }, [nodes, resultNodeId]);
+
+  // nodeTypes 现在是静态的，不需要重新创建
 
   return (
     <div className="h-full w-full flex flex-col bg-gray-900">
@@ -438,6 +634,7 @@ function SubWorkflowEditorContent({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDoubleClick={(_, node) => handleNodeDoubleClick(node.id)}
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Loose}
           fitView
@@ -446,6 +643,16 @@ function SubWorkflowEditorContent({
           <Controls className="!bg-gray-800 !border-gray-700 [&>button]:!bg-gray-900 [&>button]:!text-gray-400 [&>button]:!border-gray-700" />
         </ReactFlow>
       </div>
+
+      {/* 节点属性对话框 */}
+      {selectedNode && (
+        <NodePropertiesDialog
+          isOpen={true}
+          onClose={() => setSelectedNode(null)}
+          node={selectedNode}
+          onUpdate={handleNodeUpdate}
+        />
+      )}
     </div>
   );
 }

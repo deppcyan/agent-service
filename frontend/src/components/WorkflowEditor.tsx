@@ -588,6 +588,16 @@ const WorkflowEditorContent = ({
           inputs,
           outputs,
           connections: data.connections.filter(conn => conn.from_node === id || conn.to_node === id),
+          // 如果是 ForEachNode，立即注入回调
+          ...(node.type === 'ForEachNode' ? {
+            onEditSubWorkflow: (nodeId: string) => {
+              console.log('📞 onEditSubWorkflow called for:', nodeId);
+              handleEditSubWorkflowRef.current(nodeId);
+            },
+            subWorkflow: inputs.sub_workflow,
+            resultNodeId: inputs.result_node_id,
+            resultPortName: inputs.result_port_name,
+          } : {}),
         },
       });
     });
@@ -843,7 +853,13 @@ const WorkflowEditorContent = ({
           ])
         ),
         connections: [],
-        // onEditSubWorkflow 将通过 useEffect 注入
+        // 如果是 ForEachNode，立即注入回调
+        ...(nodeType.name === 'ForEachNode' ? {
+          onEditSubWorkflow: (nodeId: string) => {
+            console.log('📞 onEditSubWorkflow called for:', nodeId);
+            handleEditSubWorkflowRef.current(nodeId);
+          },
+        } : {}),
       },
     };
     setNodes(nodes => [...nodes, newNode]);
@@ -1006,32 +1022,25 @@ const WorkflowEditorContent = ({
       return;
     }
     
+    // 检查是否有任何 ForEachNode 缺少回调
+    const needsUpdate = forEachNodes.some(node => !node.data.onEditSubWorkflow);
+    
+    if (!needsUpdate) {
+      console.log('✅ All ForEachNodes already have callbacks');
+      return;
+    }
+    
+    console.log('🔧 Some ForEachNodes need callback injection');
+    
     setNodes((currentNodes) => {
-      let updated = false;
-      const updatedNodes = currentNodes.map((node) => {
-        // 只处理 ForEachNode
-        if (node.data.type !== 'ForEachNode') {
+      return currentNodes.map((node) => {
+        // 只处理 ForEachNode 且缺少回调的节点
+        if (node.data.type !== 'ForEachNode' || node.data.onEditSubWorkflow) {
           return node;
         }
         
-        // 检查是否需要更新
-        const hasCallback = !!node.data.onEditSubWorkflow;
-        const hasSubWorkflowInInputs = !!node.data.inputs?.sub_workflow;
-        const hasSubWorkflowInData = !!node.data.subWorkflow;
+        console.log(`  📦 Injecting callback to ForEachNode "${node.id}"`);
         
-        console.log(`  📦 ForEachNode "${node.id}":`, {
-          hasCallback,
-          hasSubWorkflowInInputs,
-          hasSubWorkflowInData,
-          willUpdate: !hasCallback || (hasSubWorkflowInInputs && !hasSubWorkflowInData)
-        });
-        
-        // 如果已经有回调且数据已同步，跳过
-        if (hasCallback && (!hasSubWorkflowInInputs || hasSubWorkflowInData)) {
-          return node;
-        }
-        
-        updated = true;
         return {
           ...node,
           data: {
@@ -1047,16 +1056,8 @@ const WorkflowEditorContent = ({
           },
         };
       });
-      
-      if (updated) {
-        console.log('✅ Injection complete - nodes updated');
-        return updatedNodes;
-      } else {
-        console.log('✅ All ForEachNodes already have callbacks');
-        return currentNodes;
-      }
     });
-  }, [nodes.length, setNodes]); // 依赖节点数量，避免循环
+  }, [nodes.length, nodes.map(n => n.data.type).join(','), setNodes]); // 依赖节点数量和类型变化
 
   const nodeTypes = useMemo(() => ({
     default: (props: NodeProps) => (
