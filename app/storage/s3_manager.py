@@ -62,18 +62,10 @@ class AWSS3Provider(S3Provider):
         """Parse AWS S3 URL to extract bucket, region, and key"""
         # Support multiple AWS S3 URL formats:
         # https://bucket.s3.region.amazonaws.com/key
-        # https://s3.region.amazonaws.com/bucket/key
-        # https://bucket.s3.amazonaws.com/key (legacy format, defaults to us-east-1)
         
         patterns = [
             # Virtual hosted-style: https://bucket.s3.region.amazonaws.com/key
-            r'https://([^.]+)\.s3\.([^.]+)\.amazonaws\.com/(.+)',
-            # Virtual hosted-style legacy: https://bucket.s3.amazonaws.com/key
-            r'https://([^.]+)\.s3\.amazonaws\.com/(.+)',
-            # Path-style: https://s3.region.amazonaws.com/bucket/key
-            r'https://s3\.([^.]+)\.amazonaws\.com/([^/]+)/(.+)',
-            # Path-style legacy: https://s3.amazonaws.com/bucket/key
-            r'https://s3\.amazonaws\.com/([^/]+)/(.+)'
+            r'https://([^.]+)\.s3\.([^.]+)\.amazonaws\.com/(.+)'
         ]
         
         for i, pattern in enumerate(patterns):
@@ -165,12 +157,9 @@ class WasabiProvider(S3Provider):
     def parse_s3_url(self, url: str) -> Tuple[str, str, str]:
         """Parse Wasabi S3 URL to extract bucket, region, and key"""
         # Support Wasabi URL formats:
-        # https://bucket.s3.region.wasabisys.com/key
         # https://s3.region.wasabisys.com/bucket/key
         
         patterns = [
-            # Virtual hosted-style: https://bucket.s3.region.wasabisys.com/key
-            r'https://([^.]+)\.s3\.([^.]+)\.wasabisys\.com/(.+)',
             # Path-style: https://s3.region.wasabisys.com/bucket/key
             r'https://s3\.([^.]+)\.wasabisys\.com/([^/]+)/(.+)'
         ]
@@ -194,7 +183,7 @@ class WasabiProvider(S3Provider):
             try:
                 extra_args = options or {}
                 await s3.upload_file(file_path, bucket, key, ExtraArgs=extra_args)
-                return f"https://{bucket}.s3.{region}.wasabisys.com/{key}"
+                return f"https://s3.{region}.wasabisys.com/{bucket}/{key}"
             except Exception as e:
                 logger.error(f"Error uploading file to Wasabi: {str(e)}")
                 raise
