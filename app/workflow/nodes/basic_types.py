@@ -95,61 +95,6 @@ class BoolInputNode(WorkflowNode):
         # but we'll ensure it explicitly
         return {"value": bool(value)}
 
-
-class IntToTextNode(WorkflowNode):
-    """Node that converts integer input to text output.
-    Useful for formatting numbers as strings in workflows."""
-    
-    category = "basic_types"
-    
-    def __init__(self, node_id: str = None):
-        super().__init__(node_id)
-        self.add_input_port("value", "number", True, tooltip="Integer value to convert to text")
-        self.add_output_port("text", "string", tooltip="Text representation of the integer value")
-    
-    async def process(self) -> Dict[str, Any]:
-        if not self.validate_inputs():
-            raise ValueError("Required inputs missing")
-            
-        value = self.input_values["value"]
-        
-        # Ensure value is an integer and convert to string
-        try:
-            int_value = int(value)
-            text_value = str(int_value)
-        except (ValueError, TypeError):
-            raise ValueError(f"Input value '{value}' cannot be converted to integer")
-            
-        return {"text": text_value}
-
-
-class FloatToTextNode(WorkflowNode):
-    """Node that converts float input to text output.
-    Useful for formatting decimal numbers as strings in workflows."""
-    
-    category = "basic_types"
-    
-    def __init__(self, node_id: str = None):
-        super().__init__(node_id)
-        self.add_input_port("value", "number", True, tooltip="Float value to convert to text")
-        self.add_output_port("text", "string", tooltip="Text representation of the float value")
-    
-    async def process(self) -> Dict[str, Any]:
-        if not self.validate_inputs():
-            raise ValueError("Required inputs missing")
-            
-        value = self.input_values["value"]
-        
-        # Ensure value is a float and convert to string
-        try:
-            float_value = float(value)
-            text_value = str(float_value)
-        except (ValueError, TypeError):
-            raise ValueError(f"Input value '{value}' cannot be converted to float")
-            
-        return {"text": text_value}
-
-
 class MathOperationNode(WorkflowNode):
     """Node that performs basic mathematical operations on two numbers.
     Supports addition, subtraction, multiplication, and division.
@@ -208,4 +153,77 @@ class MathOperationNode(WorkflowNode):
             result = int(result)
             
         return {"result": result}
+
+
+class TypeConvertNode(WorkflowNode):
+    """Node that converts values between different data types.
+    Supports conversion between float, int, and text types.
+    This is a generic conversion node that can handle any type conversion."""
+    
+    category = "basic_types"
+    
+    def __init__(self, node_id: str = None):
+        super().__init__(node_id)
+        self.add_input_port("value", "any", True, tooltip="The value to convert (can be any type)")
+        self.add_input_port("from_type", "string", True, default_value="text",
+                           options=["float", "int", "text"],
+                           tooltip="The current type of the input value: float, int, or text")
+        self.add_input_port("to_type", "string", True, default_value="text",
+                           options=["float", "int", "text"],
+                           tooltip="The target type to convert to: float, int, or text")
+        self.add_output_port("value", "any", tooltip="The converted value in the target type")
+    
+    async def process(self) -> Dict[str, Any]:
+        if not self.validate_inputs():
+            raise ValueError("Required inputs missing")
+        
+        value = self.input_values["value"]
+        from_type = self.input_values["from_type"]
+        to_type = self.input_values["to_type"]
+        
+        # Validate type options
+        valid_types = ["float", "int", "text"]
+        if from_type not in valid_types:
+            raise ValueError(f"Invalid from_type: {from_type}. Must be one of {valid_types}")
+        if to_type not in valid_types:
+            raise ValueError(f"Invalid to_type: {to_type}. Must be one of {valid_types}")
+        
+        # If same type, return as-is
+        if from_type == to_type:
+            return {"value": value}
+        
+        # First, normalize the input value based on from_type
+        try:
+            if from_type == "int":
+                # Ensure input is an integer
+                normalized_value = int(value)
+            elif from_type == "float":
+                # Ensure input is a float
+                normalized_value = float(value)
+            elif from_type == "text":
+                # Ensure input is a string
+                normalized_value = str(value)
+            else:
+                raise ValueError(f"Unsupported from_type: {from_type}")
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Cannot normalize value '{value}' as {from_type}: {str(e)}")
+        
+        # Then convert to target type
+        try:
+            if to_type == "int":
+                # Convert to int (float to int may lose precision)
+                result = int(normalized_value)
+            elif to_type == "float":
+                # Convert to float
+                result = float(normalized_value)
+            elif to_type == "text":
+                # Convert to text (string)
+                result = str(normalized_value)
+            else:
+                raise ValueError(f"Unsupported to_type: {to_type}")
+                
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"Cannot convert {from_type} value '{normalized_value}' to {to_type}: {str(e)}")
+        
+        return {"value": result}
 
