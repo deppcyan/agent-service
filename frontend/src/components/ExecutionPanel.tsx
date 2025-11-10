@@ -136,21 +136,48 @@ export default function ExecutionPanel({ tab, onUpdateTab, onSaveHistory }: Exec
     }
   };
 
-  // Extract only local_urls from results
-  const extractUrls = (obj: any): string[] => {
+  // Extract local_urls and http/https URLs from results field only
+  const extractUrls = (obj: any, inResultsContext: boolean = false): string[] => {
     if (!obj) return [];
     
     if (Array.isArray(obj)) {
-      return obj.flatMap(item => extractUrls(item));
+      return obj.flatMap(item => extractUrls(item, inResultsContext));
+    }
+    
+    if (typeof obj === 'string') {
+      // Only extract http/https URLs when in results context
+      if (inResultsContext && (obj.startsWith('http://') || obj.startsWith('https://'))) {
+        return [obj];
+      }
+      return [];
     }
     
     if (typeof obj === 'object') {
-      // Only extract URLs from local_urls field
+      const urls: string[] = [];
+      
+      // Extract URLs from local_urls field
       if (obj.hasOwnProperty('local_urls')) {
-        return Array.isArray(obj.local_urls) ? obj.local_urls : [];
+        const localUrls = Array.isArray(obj.local_urls) ? obj.local_urls : [];
+        urls.push(...localUrls.filter((url: any) => typeof url === 'string'));
       }
+      
+      // Extract http/https URLs from results field (can be nested arrays)
+      // Set inResultsContext to true when processing results field
+      if (obj.hasOwnProperty('results')) {
+        const results = obj.results;
+        urls.push(...extractUrls(results, true));
+      }
+      
       // Continue searching in nested objects
-      return Object.values(obj).flatMap(value => extractUrls(value));
+      // Skip local_urls and results as they are already processed above
+      // Don't extract http/https URLs from other fields
+      Object.entries(obj).forEach(([key, value]) => {
+        if (key !== 'local_urls' && key !== 'results') {
+          urls.push(...extractUrls(value, false));
+        }
+      });
+      
+      return urls;
     }
     
     return [];
