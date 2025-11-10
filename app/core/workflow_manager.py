@@ -82,6 +82,13 @@ class WorkflowManager:
         # First check active tasks
         if task_id in self.active_tasks:
             _, executor = self.active_tasks[task_id]
+            # Debug: Log node results structure
+            logger.info(f"Task {task_id} node_results keys: {list(executor.node_results.keys())}")
+            for node_id, node_result in executor.node_results.items():
+                logger.info(f"Task {task_id} node {node_id} result keys: {list(node_result.keys())}")
+                if 'sub_workflow_results' in node_result:
+                    logger.info(f"Task {task_id} node {node_id} has sub_workflow_results with {len(node_result['sub_workflow_results'])} items")
+            
             return {
                 "status": "running",
                 "result": executor.node_results  # 使用统一的 result 字段
@@ -89,7 +96,16 @@ class WorkflowManager:
             
         # Then check completed tasks
         if task_id in self.completed_tasks:
-            return self.completed_tasks[task_id]
+            completed_result = self.completed_tasks[task_id]
+            # Debug: Log completed task structure
+            logger.info(f"Task {task_id} completed result keys: {list(completed_result.keys())}")
+            if 'result' in completed_result:
+                logger.info(f"Task {task_id} completed result node keys: {list(completed_result['result'].keys())}")
+                for node_id, node_result in completed_result['result'].items():
+                    logger.info(f"Task {task_id} completed node {node_id} result keys: {list(node_result.keys())}")
+                    if 'sub_workflow_results' in node_result:
+                        logger.info(f"Task {task_id} completed node {node_id} has sub_workflow_results with {len(node_result['sub_workflow_results'])} items")
+            return completed_result
             
         # Return not found status instead of None
         return {

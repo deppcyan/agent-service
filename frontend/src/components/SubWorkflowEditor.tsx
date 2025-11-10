@@ -617,21 +617,11 @@ function SubWorkflowEditorContent({
     // 计算新节点的智能位置
     setNodes((currentNodes) => {
       const calculateNewNodePosition = () => {
-        // 如果没有现有节点，使用屏幕中心
-        if (currentNodes.length === 0) {
-          const centerX = window.innerWidth / 2;
-          const centerY = window.innerHeight / 2;
-          const flowPosition = screenToFlowPosition({ x: centerX, y: centerY });
-          return { x: flowPosition.x - 200, y: flowPosition.y - 100 };
-        }
-
-        // 找到最右边的节点位置
-        const rightmostX = Math.max(...currentNodes.map(node => node.position.x));
-        const baseWidth = 400;
-        const xGap = baseWidth + 100;
-        
-        // 在最右边添加新节点
-        return { x: rightmostX + xGap, y: 200 };
+        // 始终将新节点放在屏幕中心
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+        const flowPosition = screenToFlowPosition({ x: centerX, y: centerY });
+        return { x: flowPosition.x - 200, y: flowPosition.y - 100 };
       };
 
       const position = calculateNewNodePosition();

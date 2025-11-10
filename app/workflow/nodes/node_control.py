@@ -553,6 +553,8 @@ class ForEachNode(WorkflowNode):
                             tooltip="Number of failed iterations")
         self.add_output_port("errors", "array",
                             tooltip="List of errors that occurred")
+        self.add_output_port("sub_workflow_results", "array",
+                            tooltip="Complete sub-workflow execution results for each iteration")
         
         # Internal state for sub-workflow execution
         self._sub_graph: Optional[WorkflowGraph] = None
@@ -654,6 +656,7 @@ class ForEachNode(WorkflowNode):
             return {
                 "success": True,
                 "result": result_value,
+                "sub_workflow_results": executor.node_results,  # 包含完整的子工作流执行结果
                 "error": None,
                 "index": index,
                 "item": item
@@ -698,6 +701,7 @@ class ForEachNode(WorkflowNode):
             items_to_process = items[:max_iterations]
         
         results = []
+        sub_workflow_results = []  # 存储每次迭代的完整子工作流结果
         errors = []
         success_count = 0
         error_count = 0
@@ -721,6 +725,12 @@ class ForEachNode(WorkflowNode):
             for iter_result in iteration_results:
                 if iter_result["success"]:
                     results.append(iter_result["result"])
+                    sub_workflow_results.append({
+                        "index": iter_result["index"],
+                        "item": iter_result["item"],
+                        "result": iter_result["result"],
+                        "sub_workflow_results": iter_result.get("sub_workflow_results", {})
+                    })
                     success_count += 1
                 else:
                     error_count += 1
@@ -739,6 +749,12 @@ class ForEachNode(WorkflowNode):
                 
                 if iter_result["success"]:
                     results.append(iter_result["result"])
+                    sub_workflow_results.append({
+                        "index": iter_result["index"],
+                        "item": iter_result["item"],
+                        "result": iter_result["result"],
+                        "sub_workflow_results": iter_result.get("sub_workflow_results", {})
+                    })
                     success_count += 1
                 else:
                     error_count += 1
@@ -759,6 +775,7 @@ class ForEachNode(WorkflowNode):
         
         return {
             "results": results,
+            "sub_workflow_results": sub_workflow_results,  # 包含每次迭代的完整子工作流结果
             "item_value": items_to_process[-1] if items_to_process else None,
             "current_index": len(items_to_process) - 1 if items_to_process else -1,
             "total_count": len(items_to_process),
