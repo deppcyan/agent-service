@@ -399,6 +399,98 @@ result3 = await passthrough_node3.process()
 # 1. Switch节点控制工作流走向
 # 2. 真实数据通过PassThrough节点透传
 # 3. 只有满足条件的分支才会继续执行
+
+
+# ===== MergeNode 使用示例 =====
+
+# 场景1: 与SwitchNode配合使用，汇总分支结果
+switch_node = SwitchNode(output_count=3)
+merge_node = MergeNode(input_count=4)  # 3个输出分支 + 1个fallback
+
+# 设置Switch节点
+switch_node.input_values = {
+    "data": {"user_type": "premium", "score": 95},
+    "rules": [
+        {
+            "field": "user_type",
+            "operator": "equals",
+            "value": "premium",
+            "output_index": 0
+        },
+        {
+            "field": "score",
+            "operator": "greater",
+            "value": 90,
+            "output_index": 1
+        }
+    ],
+    "mode": "first_match"
+}
+
+# 执行Switch节点
+switch_result = await switch_node.process()
+# switch_result = {
+#     "output_0": {"user_type": "premium", "score": 95},  # 匹配的输出
+#     "output_1": None,
+#     "output_2": None,
+#     "fallback": None
+# }
+
+# 设置Merge节点，接收Switch的所有输出
+merge_node.input_values = {
+    "input_0": switch_result["output_0"],
+    "input_1": switch_result["output_1"], 
+    "input_2": switch_result["output_2"],
+    "input_3": switch_result["fallback"]
+}
+
+# 执行Merge节点
+merge_result = await merge_node.process()
+# merge_result = {
+#     "output": {"user_type": "premium", "score": 95},  # 第一个非空值
+#     "selected_index": 0,  # 选中了input_0
+#     "has_result": True
+# }
+
+# 场景2: 处理多个可选数据源
+merge_node2 = MergeNode(input_count=3)
+merge_node2.input_values = {
+    "input_0": None,  # 第一个数据源为空
+    "input_1": [],    # 第二个数据源为空列表
+    "input_2": {"data": "from source 3"}  # 第三个数据源有数据
+}
+
+result2 = await merge_node2.process()
+# result2 = {
+#     "output": {"data": "from source 3"},
+#     "selected_index": 2,
+#     "has_result": True
+# }
+
+# 场景3: 所有输入都为空
+merge_node3 = MergeNode(input_count=2)
+merge_node3.input_values = {
+    "input_0": None,
+    "input_1": ""  # 空字符串
+}
+
+result3 = await merge_node3.process()
+# result3 = {
+#     "output": None,
+#     "selected_index": -1,
+#     "has_result": False
+# }
+
+# 典型工作流结构（使用MergeNode）：
+# [数据源] -> [Switch节点] ─┬─ output_0 ─┐
+#                          ├─ output_1 ─┤
+#                          ├─ output_2 ─┼─> [Merge节点] -> [后续节点]
+#                          └─ fallback ─┘
+#
+# 这样可以：
+# 1. Switch节点根据条件路由到不同分支
+# 2. Merge节点自动选择激活的分支结果
+# 3. 后续节点接收统一的输出，无需处理多分支逻辑
 """
 
 
@@ -673,6 +765,87 @@ class ForEachNode(WorkflowNode):
             "success_count": success_count,
             "error_count": error_count,
             "errors": errors
+        }
+
+
+class MergeNode(WorkflowNode):
+    """合并节点 - 选择第一个不为空的输入作为输出
+    
+    主要用于SwitchNode分支的结果汇总：
+    - 接收多个输入端口的数据
+    - 选择第一个不为None的输入作为输出
+    - 对于列表类型，选择第一个非空列表
+    - 如果所有输入都为空，输出None
+    
+    典型使用场景：
+    SwitchNode的多个输出分支 -> MergeNode -> 后续节点
+    这样可以将条件分支的结果汇总为单一输出
+    """
+    
+    category = "control"
+    
+    def __init__(self, node_id: Optional[str] = None, input_count: int = 3):
+        super().__init__(node_id)
+        
+        # 动态创建多个输入端口
+        self.input_count = input_count
+        for i in range(input_count):
+            self.add_input_port(f"input_{i}", "any", False, None, 
+                              tooltip=f"输入端口 {i}（可选）")
+        
+        # 输出端口
+        self.add_output_port("output", "any", tooltip="合并后的输出")
+        self.add_output_port("selected_index", "number", tooltip="被选中的输入端口索引")
+        self.add_output_port("has_result", "boolean", tooltip="是否有非空结果")
+    
+    def _is_empty_value(self, value: Any) -> bool:
+        """判断值是否为空"""
+        if value is None:
+            return True
+        
+        # 对于列表，检查是否为空列表
+        if isinstance(value, list):
+            return len(value) == 0
+        
+        # 对于字典，检查是否为空字典
+        if isinstance(value, dict):
+            return len(value) == 0
+        
+        # 对于字符串，检查是否为空字符串
+        if isinstance(value, str):
+            return len(value.strip()) == 0
+        
+        # 其他类型认为非空
+        return False
+    
+    async def process(self) -> Dict[str, Any]:
+        """处理合并逻辑"""
+        selected_value = None
+        selected_index = -1
+        
+        # 遍历所有输入端口，找到第一个不为空的值
+        for i in range(self.input_count):
+            port_name = f"input_{i}"
+            if port_name in self.input_values:
+                value = self.input_values[port_name]
+                
+                if not self._is_empty_value(value):
+                    selected_value = value
+                    selected_index = i
+                    logger.info(f"MergeNode: Selected input_{i} with value type {type(value).__name__}", 
+                              extra=self.get_log_extra())
+                    break
+        
+        has_result = selected_value is not None
+        
+        if not has_result:
+            logger.info("MergeNode: No non-empty inputs found, outputting None", 
+                       extra=self.get_log_extra())
+        
+        return {
+            "output": selected_value,
+            "selected_index": selected_index,
+            "has_result": has_result
         }
 
 
