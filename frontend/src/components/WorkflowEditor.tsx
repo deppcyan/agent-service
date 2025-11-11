@@ -1177,6 +1177,19 @@ const WorkflowEditorContent = ({
   // Add keyboard shortcuts for menu actions and copy-paste
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if the focus is on a text input, textarea, or contenteditable element
+      const activeElement = document.activeElement;
+      const isTextInput = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.getAttribute('contenteditable') === 'true'
+      );
+
+      // Don't intercept keyboard events when user is typing in text inputs
+      if (isTextInput) {
+        return;
+      }
+
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
           case 'o':
