@@ -970,6 +970,440 @@ foreach_node.input_values = {
 
 这些节点可以灵活组合，构建从简单的数据处理到复杂的AI模型调用工作流。
 
+## 完整工作流文件示例
+
+### 示例：智能视频生成工作流
+
+以下是一个完整的工作流文件示例，展示了如何构建一个智能视频生成系统。该工作流能够：
+1. 解析包含文本和音频信息的JSON数据
+2. 根据是否包含音频信息进行条件分支
+3. 生成对应的视频内容（有音频时生成对话视频，无音频时生成静态视频）
+
+```json
+{
+  "nodes": {
+    "json_parser": {
+      "type": "JsonParseNode",
+      "inputs": {
+        "json_string": "[\n  {\n    \"text\": \"月光下，牛郎凝视葡萄架，轻声问织女故乡。特写镜头捕捉织女眼中星光，葡萄藤叶沙沙作响，光影斑驳。\",\n    \"audio\": \"轻柔女声：'你从很远的地方来，那里有...'\"\n  },\n  {\n    \"text\": \"中景，织女转身，裙摆拂过葡萄架。两人相距三步，葡萄架枝叶在风中摇曳，远处山峦轮廓渐暗。\",\n    \"audio\": \"\"\n  }\n]"
+      }
+    },
+    "video_generator": {
+      "type": "ForEachNode",
+      "inputs": {
+        "sub_workflow": {
+          "nodes": [
+            {
+              "type": "ForEachItemNode",
+              "id": "item_input",
+              "input_values": {}
+            },
+            {
+              "type": "SwitchNode",
+              "id": "audio_checker",
+              "input_values": {
+                "data": null,
+                "rules": [
+                  {
+                    "field": "audio",
+                    "operator": "is_not_empty",
+                    "output_index": 0
+                  }
+                ],
+                "mode": "first_match"
+              }
+            },
+            {
+              "type": "JsonExtractNode",
+              "id": "text_extractor_with_audio",
+              "input_values": {
+                "json_object": null,
+                "key": "text"
+              }
+            },
+            {
+              "type": "JsonExtractNode",
+              "id": "audio_extractor",
+              "input_values": {
+                "json_object": null,
+                "key": "audio"
+              }
+            },
+            {
+              "type": "ModelRequestInputNode",
+              "id": "image_input_processor",
+              "input_values": {
+                "url": null,
+                "urls": [],
+                "type": "image"
+              }
+            },
+            {
+              "type": "TextInputNode",
+              "id": "reference_image",
+              "input_values": {
+                "text": "https://liveme-pic.s3.us-west-1.amazonaws.com/ma/thumbnail/1762764916219684550_4bc8c532-8c8e-4d64-ad7e-c0564cf6f7f4.jpeg"
+              }
+            },
+            {
+              "type": "TextInputNode",
+              "id": "voice_template",
+              "input_values": {
+                "text": "https://digen-app-config.s3.us-west-1.amazonaws.com/agent-service/audio/voices/female.wav"
+              }
+            },
+            {
+              "type": "ModelRequestInputNode",
+              "id": "audio_input_processor",
+              "input_values": {
+                "url": null,
+                "urls": [],
+                "type": "audio"
+              }
+            },
+            {
+              "type": "ConcatModelRequestInputNode",
+              "id": "input_combiner",
+              "input_values": {}
+            },
+            {
+              "type": "TextInputNode",
+              "id": "text_passthrough_with_audio",
+              "input_values": {}
+            },
+            {
+              "type": "TextInputNode",
+              "id": "audio_passthrough",
+              "input_values": {}
+            },
+            {
+              "type": "ModelRequestNode",
+              "id": "talking_video_request",
+              "input_values": {
+                "input_list": [],
+                "prompt": "",
+                "audio_prompt": "",
+                "negative_prompt": "",
+                "width": 360,
+                "height": 640,
+                "batch_size": 1,
+                "num_frames": null,
+                "seed": null,
+                "output_format": null,
+                "extra_options": {},
+                "aws_urls": [],
+                "wasabi_urls": []
+              }
+            },
+            {
+              "type": "JsonExtractNode",
+              "id": "text_extractor_no_audio",
+              "input_values": {
+                "json_object": null,
+                "key": "text"
+              }
+            },
+            {
+              "type": "TextInputNode",
+              "id": "text_passthrough_no_audio",
+              "input_values": {}
+            },
+            {
+              "type": "ModelRequestNode",
+              "id": "static_video_request",
+              "input_values": {
+                "prompt": "",
+                "audio_prompt": "",
+                "negative_prompt": "",
+                "width": 768,
+                "height": 768,
+                "batch_size": 1,
+                "extra_options": {},
+                "aws_urls": [],
+                "wasabi_urls": []
+              }
+            },
+            {
+              "type": "ModelServiceNode",
+              "id": "talking_video_service",
+              "input_values": {
+                "timeout": 500,
+                "model": "wan-talk",
+                "request": null
+              }
+            },
+            {
+              "type": "ModelServiceNode",
+              "id": "static_video_service",
+              "input_values": {
+                "timeout": 500,
+                "model": "wan-i2v",
+                "request": null
+              }
+            },
+            {
+              "type": "MergeNode",
+              "id": "result_merger",
+              "input_values": {}
+            },
+            {
+              "type": "PassThroughNode",
+              "id": "static_video_controller",
+              "input_values": {
+                "pass_on_empty": false
+              }
+            },
+            {
+              "type": "PassThroughNode",
+              "id": "talking_video_controller",
+              "input_values": {
+                "pass_on_empty": false
+              }
+            }
+          ],
+          "connections": [
+            {
+              "from_node": "item_input",
+              "from_port": "item",
+              "to_node": "audio_checker",
+              "to_port": "data"
+            },
+            {
+              "from_node": "audio_checker",
+              "from_port": "output_0",
+              "to_node": "text_extractor_with_audio",
+              "to_port": "json_object"
+            },
+            {
+              "from_node": "audio_checker",
+              "from_port": "output_0",
+              "to_node": "audio_extractor",
+              "to_port": "json_object"
+            },
+            {
+              "from_node": "reference_image",
+              "from_port": "text",
+              "to_node": "image_input_processor",
+              "to_port": "url"
+            },
+            {
+              "from_node": "voice_template",
+              "from_port": "text",
+              "to_node": "audio_input_processor",
+              "to_port": "url"
+            },
+            {
+              "from_node": "image_input_processor",
+              "from_port": "input_list",
+              "to_node": "input_combiner",
+              "to_port": "input_1"
+            },
+            {
+              "from_node": "audio_input_processor",
+              "from_port": "input_list",
+              "to_node": "input_combiner",
+              "to_port": "input_2"
+            },
+            {
+              "from_node": "text_extractor_with_audio",
+              "from_port": "value",
+              "to_node": "text_passthrough_with_audio",
+              "to_port": "text"
+            },
+            {
+              "from_node": "audio_extractor",
+              "from_port": "value",
+              "to_node": "audio_passthrough",
+              "to_port": "text"
+            },
+            {
+              "from_node": "text_passthrough_with_audio",
+              "from_port": "text",
+              "to_node": "talking_video_request",
+              "to_port": "prompt"
+            },
+            {
+              "from_node": "audio_passthrough",
+              "from_port": "text",
+              "to_node": "talking_video_request",
+              "to_port": "audio_prompt"
+            },
+            {
+              "from_node": "input_combiner",
+              "from_port": "input_list",
+              "to_node": "talking_video_request",
+              "to_port": "input_list"
+            },
+            {
+              "from_node": "audio_checker",
+              "from_port": "fallback",
+              "to_node": "text_extractor_no_audio",
+              "to_port": "json_object"
+            },
+            {
+              "from_node": "text_extractor_no_audio",
+              "from_port": "value",
+              "to_node": "text_passthrough_no_audio",
+              "to_port": "text"
+            },
+            {
+              "from_node": "text_passthrough_no_audio",
+              "from_port": "text",
+              "to_node": "static_video_request",
+              "to_port": "prompt"
+            },
+            {
+              "from_node": "input_combiner",
+              "from_port": "input_list",
+              "to_node": "static_video_request",
+              "to_port": "input_list"
+            },
+            {
+              "from_node": "talking_video_service",
+              "from_port": "local_urls",
+              "to_node": "result_merger",
+              "to_port": "input_0"
+            },
+            {
+              "from_node": "static_video_service",
+              "from_port": "local_urls",
+              "to_node": "result_merger",
+              "to_port": "input_1"
+            },
+            {
+              "from_node": "audio_checker",
+              "from_port": "fallback",
+              "to_node": "static_video_controller",
+              "to_port": "control"
+            },
+            {
+              "from_node": "static_video_request",
+              "from_port": "request",
+              "to_node": "static_video_controller",
+              "to_port": "data"
+            },
+            {
+              "from_node": "static_video_controller",
+              "from_port": "output",
+              "to_node": "static_video_service",
+              "to_port": "request"
+            },
+            {
+              "from_node": "audio_checker",
+              "from_port": "output_0",
+              "to_node": "talking_video_controller",
+              "to_port": "control"
+            },
+            {
+              "from_node": "talking_video_request",
+              "from_port": "request",
+              "to_node": "talking_video_controller",
+              "to_port": "data"
+            },
+            {
+              "from_node": "talking_video_controller",
+              "from_port": "output",
+              "to_node": "talking_video_service",
+              "to_port": "request"
+            }
+          ]
+        },
+        "result_node_id": "result_merger",
+        "result_port_name": "output",
+        "parallel": false,
+        "continue_on_error": true
+      }
+    }
+  },
+  "connections": [
+    {
+      "from_node": "json_parser",
+      "from_port": "json_object",
+      "to_node": "video_generator",
+      "to_port": "items"
+    }
+  ]
+}
+```
+
+### 工作流执行流程说明
+
+**主工作流层级**:
+1. **JsonParseNode** (`json_parser`): 解析包含视频场景描述的JSON数据
+2. **ForEachNode** (`video_generator`): 对每个场景执行子工作流生成视频
+
+**子工作流层级**:
+
+**1. 数据接收与条件判断**
+- **ForEachItemNode** (`item_input`): 接收当前处理的场景数据
+- **SwitchNode** (`audio_checker`): 检查场景是否包含音频信息
+  - 规则: `audio` 字段不为空时路由到 `output_0`
+  - 无音频时路由到 `fallback`
+
+**2. 有音频分支 (对话视频生成)**
+```
+audio_checker.output_0 → text_extractor_with_audio → text_passthrough_with_audio
+                      → audio_extractor → audio_passthrough
+                      ↓
+talking_video_request → talking_video_controller → talking_video_service
+```
+
+**3. 无音频分支 (静态视频生成)**
+```
+audio_checker.fallback → text_extractor_no_audio → text_passthrough_no_audio
+                      ↓
+static_video_request → static_video_controller → static_video_service
+```
+
+**4. 输入资源准备**
+- **reference_image**: 提供参考图像URL
+- **voice_template**: 提供语音模板URL
+- **image_input_processor** + **audio_input_processor**: 处理输入资源
+- **input_combiner**: 合并图像和音频输入
+
+**5. 结果合并**
+- **result_merger**: 合并两个分支的视频输出结果
+- **PassThroughNode**: 控制数据流，确保只有匹配的分支执行
+
+### 关键特性展示
+
+**1. 条件分支处理**
+- 使用 `SwitchNode` 根据数据内容智能路由
+- 支持复杂的字段检查逻辑
+
+**2. 多模态输入处理**
+- 图像输入处理 (`ModelRequestInputNode` with `type: "image"`)
+- 音频输入处理 (`ModelRequestInputNode` with `type: "audio"`)
+- 输入合并 (`ConcatModelRequestInputNode`)
+
+**3. 不同模型服务调用**
+- `wan-talk`: 对话视频生成模型
+- `wan-i2v`: 图像到视频转换模型
+
+**4. 流程控制**
+- `PassThroughNode`: 确保只有满足条件的分支执行
+- `MergeNode`: 合并不同分支的结果
+
+**5. 批量处理**
+- `ForEachNode`: 对多个场景并行或串行处理
+- 错误容忍: `continue_on_error: true`
+
+### 实际应用场景
+
+这个工作流适用于：
+- **智能视频制作**: 根据脚本自动生成视频内容
+- **多媒体内容处理**: 处理包含文本、图像、音频的复合数据
+- **条件化AI服务**: 根据输入内容选择不同的AI模型
+- **批量内容生成**: 一次处理多个场景或片段
+
+### 扩展建议
+
+1. **添加更多条件分支**: 可以根据文本长度、内容类型等添加更多路由规则
+2. **结果后处理**: 在 `result_merger` 后添加视频合成、格式转换等节点
+3. **错误处理**: 添加专门的错误处理分支
+4. **性能优化**: 启用 `parallel: true` 进行并行处理
+5. **监控和日志**: 添加状态监控和日志记录节点
+
 ## 使用示例
 
 ### 示例1: 基本文本生成工作流
