@@ -53,9 +53,10 @@ interface CustomNodeProps extends NodeProps {
   setSelectedNode?: (node: Node | null) => void;
   setNodes?: (updater: (nodes: Node[]) => Node[]) => void;
   updateEdgesAfterNodeIdChange?: (oldId: string, newId: string) => void;
+  deleteNodes?: (nodeIds: string[] | Set<string>) => void;
 }
 
-const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeIdChange }: CustomNodeProps) => {
+const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeIdChange, deleteNodes }: CustomNodeProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(id);
@@ -279,7 +280,7 @@ const CustomNode = ({ data, id, setSelectedNode, setNodes, updateEdgesAfterNodeI
                 className="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-gray-700 hover:text-red-300"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setNodes?.(nodes => nodes.filter(n => n.id !== id));
+                  deleteNodes?.([id]);
                   setShowMenu(false);
                 }}
               >
@@ -796,33 +797,37 @@ const WorkflowEditorContent = ({
     [setEdges, setNodes]
   );
 
-  // Handle node deletion
+  // 统一的节点删除函数
+  const deleteNodes = useCallback((nodeIds: string[] | Set<string>) => {
+    const nodeIdSet = nodeIds instanceof Set ? nodeIds : new Set(nodeIds);
+    
+    // Remove all edges connected to deleted nodes
+    setEdges(edges => edges.filter(edge => 
+      !nodeIdSet.has(edge.source) && !nodeIdSet.has(edge.target)
+    ));
+    
+    // Remove nodes and clean up connections from remaining nodes' data
+    setNodes(nodes => nodes
+      .filter(node => !nodeIdSet.has(node.id)) // Remove deleted nodes
+      .map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          connections: (node.data.connections || []).filter((conn: Connection) => 
+            !nodeIdSet.has(conn.from_node) && !nodeIdSet.has(conn.to_node)
+          )
+        }
+      }))
+    );
+  }, [setEdges, setNodes]);
+
+  // Handle node deletion (ReactFlow callback)
   const onNodesDelete: OnNodesDelete = useCallback(
     (nodesToDelete) => {
-      const nodeIds = new Set(nodesToDelete.map(node => node.id));
-      
-      // Remove all edges connected to deleted nodes
-      setEdges(edges.filter(edge => 
-        !nodeIds.has(edge.source) && !nodeIds.has(edge.target)
-      ));
-      
-      // Remove connections from remaining nodes' data
-      setNodes(nodes => nodes.map(node => {
-        if (nodeIds.has(node.id)) {
-          return node; // 被删除的节点不需要处理
-        }
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            connections: (node.data.connections || []).filter((conn: Connection) => 
-              !nodeIds.has(conn.from_node) && !nodeIds.has(conn.to_node)
-            )
-          }
-        };
-      }));
+      const nodeIds = nodesToDelete.map(node => node.id);
+      deleteNodes(nodeIds);
     },
-    [edges, setEdges, setNodes]
+    [deleteNodes]
   );
 
   // Handle adding new nodes
@@ -1167,9 +1172,10 @@ const WorkflowEditorContent = ({
         setSelectedNode={setSelectedNode}
         setNodes={setNodes}
         updateEdgesAfterNodeIdChange={updateEdgesAfterNodeIdChange}
+        deleteNodes={deleteNodes}
       />
     ),
-  }), []); // 空依赖 - 这些 props 应该是稳定的
+  }), [setSelectedNode, setNodes, updateEdgesAfterNodeIdChange, deleteNodes]);
 
   // 缓存 workflow 对象以避免重复执行
   const workflow = useMemo(() => transformFlowToWorkflow(nodes, edges), [nodes, edges]);
@@ -1223,7 +1229,7 @@ const WorkflowEditorContent = ({
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedNodes.size > 0) {
           e.preventDefault();
-          setNodes(nodes => nodes.filter(n => !selectedNodes.has(n.id)));
+          deleteNodes(selectedNodes);
           setSelectedNodes(new Set());
         }
       }
@@ -1231,7 +1237,7 @@ const WorkflowEditorContent = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [importWorkflow, saveWorkflow, exportWorkflow, copyNodes, pasteNodes, selectedNodes, setNodes]);
+  }, [importWorkflow, saveWorkflow, exportWorkflow, copyNodes, pasteNodes, selectedNodes, deleteNodes]);
 
   // 自定义连线样式
   const edgeStyles = {
@@ -1374,7 +1380,7 @@ const WorkflowEditorContent = ({
               <button
                 className="w-full px-4 py-2 text-left text-red-400 hover:bg-gray-700 hover:text-red-300"
                 onClick={() => {
-                  setNodes(nodes => nodes.filter(n => n.id !== contextMenu.id));
+                  deleteNodes([contextMenu.id]);
                   setContextMenu(null);
                 }}
               >

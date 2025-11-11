@@ -554,6 +554,19 @@ function SubWorkflowEditorContent({
     setSelectedEdge(null);
   }, [setEdges]);
 
+  // 统一的节点删除函数
+  const deleteNodes = useCallback((nodeIds: string[] | Set<string>) => {
+    const nodeIdSet = nodeIds instanceof Set ? nodeIds : new Set(nodeIds);
+    
+    // Remove all edges connected to deleted nodes
+    setEdges(edges => edges.filter(edge => 
+      !nodeIdSet.has(edge.source) && !nodeIdSet.has(edge.target)
+    ));
+    
+    // Remove nodes
+    setNodes(nodes => nodes.filter(node => !nodeIdSet.has(node.id)));
+  }, [setEdges, setNodes]);
+
   // Generate unique node ID
   const generateUniqueNodeId = useCallback((baseId: string, existingIds: Set<string>): string => {
     let counter = 1;
@@ -778,7 +791,7 @@ function SubWorkflowEditorContent({
           });
           
           if (nodesToDelete.length > 0) {
-            setNodes(nodes => nodes.filter(n => !nodesToDelete.includes(n.id)));
+            deleteNodes(nodesToDelete);
             setSelectedNodes(new Set());
           }
         }
@@ -787,7 +800,7 @@ function SubWorkflowEditorContent({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [copyNodes, pasteNodes, selectedNodes, nodes, setNodes]);
+  }, [copyNodes, pasteNodes, selectedNodes, nodes, deleteNodes]);
 
   // 暴露 API 给全局，让主界面的侧边栏可以调用
   useEffect(() => {
