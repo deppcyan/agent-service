@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { type NodeType } from '../services/api';
 import type { NodeTypesResponse } from '../services/nodeTypes';
 import { nodesCache } from '../services/nodesCache';
@@ -11,6 +12,7 @@ const NodeTypeSelector = ({ onNodeAdd }: NodeTypeSelectorProps) => {
   const [categories, setCategories] = useState<Record<string, NodeType[]>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const loadNodeTypes = async () => {
@@ -57,6 +59,18 @@ const NodeTypeSelector = ({ onNodeAdd }: NodeTypeSelectorProps) => {
     }
   };
 
+  const toggleCategory = (category: string) => {
+    setCollapsedCategories(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(category)) {
+        newSet.delete(category);
+      } else {
+        newSet.add(category);
+      }
+      return newSet;
+    });
+  };
+
   if (loading) {
     return (
       <div className="p-4 text-center text-gray-400">
@@ -78,24 +92,37 @@ const NodeTypeSelector = ({ onNodeAdd }: NodeTypeSelectorProps) => {
           {refreshing ? '⟳' : '↻'}
         </button>
       </div>
-      {Object.entries(categories).map(([category, nodes]) => (
-        <div key={category} className="mb-4">
-          <h3 className="text-sm font-semibold text-indigo-400 mb-2 px-2">
-            {category.charAt(0).toUpperCase() + category.slice(1)}
-          </h3>
-          <div className="space-y-1">
-            {nodes.map((nodeType) => (
-              <button
-                key={nodeType.name}
-                onClick={() => onNodeAdd(nodeType.name)}
-                className="block w-full text-left px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded text-sm"
-              >
-                {nodeType.name}
-              </button>
-            ))}
+      {Object.entries(categories).map(([category, nodes]) => {
+        const isCollapsed = collapsedCategories.has(category);
+        return (
+          <div key={category} className="mb-4">
+            <button
+              onClick={() => toggleCategory(category)}
+              className="flex items-center justify-between w-full text-sm font-semibold text-indigo-400 mb-2 px-2 py-1 hover:bg-gray-700 rounded transition-colors"
+            >
+              <span>{category.charAt(0).toUpperCase() + category.slice(1)}</span>
+              {isCollapsed ? (
+                <ChevronRightIcon className="w-4 h-4" />
+              ) : (
+                <ChevronDownIcon className="w-4 h-4" />
+              )}
+            </button>
+            {!isCollapsed && (
+              <div className="space-y-1">
+                {nodes.map((nodeType) => (
+                  <button
+                    key={nodeType.name}
+                    onClick={() => onNodeAdd(nodeType.name)}
+                    className="block w-full text-left px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white rounded text-sm"
+                  >
+                    {nodeType.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
