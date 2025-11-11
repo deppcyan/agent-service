@@ -537,6 +537,8 @@ class ForEachNode(WorkflowNode):
                            tooltip="Continue processing if an iteration fails (default: True)")
         self.add_input_port("max_iterations", "number", False,
                            tooltip="Maximum number of iterations to run (default: unlimited)")
+        self.add_input_port("global_vars", "object", False,
+                           tooltip="Global variables to pass to each ForEachItemNode (as dict)")
         
         # Output ports
         self.add_output_port("results", "array",
@@ -607,7 +609,8 @@ class ForEachNode(WorkflowNode):
                                  index: int,
                                  sub_workflow_def: Dict[str, Any],
                                  result_node_id: str,
-                                 result_port_name: str) -> Dict[str, Any]:
+                                 result_port_name: str,
+                                 global_vars: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Execute a single iteration of the sub-workflow.
         
@@ -617,6 +620,7 @@ class ForEachNode(WorkflowNode):
             sub_workflow_def: Sub-workflow definition
             result_node_id: Node ID to collect result from
             result_port_name: Port name to collect result from
+            global_vars: Global variables to pass to ForEachItemNode
         
         Returns:
             Dictionary containing:
@@ -638,6 +642,8 @@ class ForEachNode(WorkflowNode):
                     node.input_values["foreach_item"] = item
                 if "foreach_index" in node.input_ports:
                     node.input_values["foreach_index"] = index
+                if "foreach_global_vars" in node.input_ports and global_vars is not None:
+                    node.input_values["foreach_global_vars"] = global_vars
             
             # Execute sub-workflow
             executor = WorkflowExecutor(graph, task_id=self.task_id)
@@ -690,6 +696,7 @@ class ForEachNode(WorkflowNode):
         parallel = self.input_values.get("parallel", False)
         continue_on_error = self.input_values.get("continue_on_error", True)
         max_iterations = self.input_values.get("max_iterations")
+        global_vars = self.input_values.get("global_vars", {})
         
         if not isinstance(items, list):
             raise ValueError("items must be a list")
@@ -715,7 +722,7 @@ class ForEachNode(WorkflowNode):
             tasks = [
                 self._execute_iteration(
                     item, index, sub_workflow_def, 
-                    result_node_id, result_port_name
+                    result_node_id, result_port_name, global_vars
                 )
                 for index, item in enumerate(items_to_process)
             ]
@@ -744,7 +751,7 @@ class ForEachNode(WorkflowNode):
             for index, item in enumerate(items_to_process):
                 iter_result = await self._execute_iteration(
                     item, index, sub_workflow_def,
-                    result_node_id, result_port_name
+                    result_node_id, result_port_name, global_vars
                 )
                 
                 if iter_result["success"]:
@@ -884,12 +891,16 @@ class ForEachItemNode(WorkflowNode):
                            tooltip="Current item from ForEach loop")
         self.add_input_port("foreach_index", "number", False,
                            tooltip="Index of current item in ForEach loop")
+        self.add_input_port("foreach_global_vars", "object", False,
+                           tooltip="Global variables passed from ForEach loop")
         
         # Output ports - passes data to rest of sub-workflow
         self.add_output_port("item", "any",
                             tooltip="Current item being processed")
         self.add_output_port("index", "number",
                             tooltip="Index of current item")
+        self.add_output_port("global_vars", "object",
+                            tooltip="Global variables from ForEach loop")
     
     async def process(self) -> Dict[str, Any]:
         """Pass through the ForEach context values"""
@@ -898,8 +909,10 @@ class ForEachItemNode(WorkflowNode):
         
         item = self.input_values["foreach_item"]
         index = self.input_values.get("foreach_index", 0)
+        global_vars = self.input_values.get("foreach_global_vars", {})
         
         return {
             "item": item,
-            "index": index
+            "index": index,
+            "global_vars": global_vars
         }
