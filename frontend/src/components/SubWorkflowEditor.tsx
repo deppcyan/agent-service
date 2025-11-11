@@ -243,6 +243,8 @@ function SubWorkflowEditorContent({
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number; type: 'edge' } | null>(null);
+  const [copiedNodes, setCopiedNodes] = useState<Node[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const { screenToFlowPosition } = useReactFlow();
 
   // 计算节点的执行顺序（与主编辑器一致）
@@ -430,6 +432,32 @@ function SubWorkflowEditorContent({
     });
   }, [setNodes]);
 
+  // Handle node selection with multi-select support
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    event.stopPropagation();
+    
+    const isMultiSelect = event.ctrlKey || event.metaKey;
+    let newSelectedNodes: Set<string>;
+    
+    if (isMultiSelect) {
+      // Multi-select mode
+      newSelectedNodes = new Set(selectedNodes);
+      if (newSelectedNodes.has(node.id)) {
+        newSelectedNodes.delete(node.id);
+      } else {
+        newSelectedNodes.add(node.id);
+      }
+    } else {
+      // Single select mode
+      newSelectedNodes = new Set([node.id]);
+    }
+    
+    setSelectedNodes(newSelectedNodes);
+    
+    // Close edge selection
+    setSelectedEdge(null);
+  }, [selectedNodes]);
+
   // 处理节点双击
   const handleNodeDoubleClick = useCallback((nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
@@ -473,6 +501,7 @@ function SubWorkflowEditorContent({
       data: {
         ...node.data,
         isResultNode: node.id === resultNodeId,
+        selected: selectedNodes.has(node.id),
         onNodeIdChange: handleNodeIdChange,
         connections: edges.filter(edge => 
           edge.source === node.id || edge.target === node.id
@@ -484,7 +513,7 @@ function SubWorkflowEditorContent({
         })),
       },
     }));
-  }, [nodes, resultNodeId, edges, handleNodeIdChange]);
+  }, [nodes, resultNodeId, selectedNodes, edges, handleNodeIdChange]);
 
   const onConnect = useCallback(
     (params: ReactFlowConnection) => {
@@ -525,10 +554,72 @@ function SubWorkflowEditorContent({
     setSelectedEdge(null);
   }, [setEdges]);
 
-  // Handle background click to close context menu
+  // Generate unique node ID
+  const generateUniqueNodeId = useCallback((baseId: string, existingIds: Set<string>): string => {
+    let counter = 1;
+    let newId = baseId;
+    
+    while (existingIds.has(newId)) {
+      newId = `${baseId}_copy_${counter}`;
+      counter++;
+    }
+    
+    return newId;
+  }, []);
+
+  // Copy selected nodes
+  const copyNodes = useCallback(() => {
+    const nodesToCopy = nodes.filter(node => selectedNodes.has(node.id));
+    if (nodesToCopy.length > 0) {
+      setCopiedNodes(nodesToCopy);
+      console.log(`📋 SubWorkflow: Copied ${nodesToCopy.length} nodes`);
+    }
+  }, [nodes, selectedNodes]);
+
+  // Paste copied nodes
+  const pasteNodes = useCallback(() => {
+    if (copiedNodes.length === 0) return;
+
+    const existingIds = new Set(nodes.map(n => n.id));
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const flowPosition = screenToFlowPosition({ x: centerX, y: centerY });
+    
+    // Calculate offset for pasted nodes
+    const offset = { x: 50, y: 50 };
+    
+    const newNodes = copiedNodes.map((node, index) => {
+      const newId = generateUniqueNodeId(node.id, existingIds);
+      existingIds.add(newId); // Add to set to avoid duplicates in this batch
+      
+      return {
+        ...node,
+        id: newId,
+        position: {
+          x: flowPosition.x + (index * offset.x) - 200,
+          y: flowPosition.y + (index * offset.y) - 100
+        },
+        data: {
+          ...node.data,
+          selected: false,
+        }
+      };
+    });
+
+    setNodes(nodes => [...nodes, ...newNodes]);
+    
+    // Select the newly pasted nodes
+    const newNodeIds = new Set(newNodes.map(n => n.id));
+    setSelectedNodes(newNodeIds);
+    
+    console.log(`📋 SubWorkflow: Pasted ${newNodes.length} nodes`);
+  }, [copiedNodes, nodes, screenToFlowPosition, generateUniqueNodeId, setNodes]);
+
+  // Handle background click to close context menu and clear selections
   const onPaneClick = useCallback(() => {
     setContextMenu(null);
     setSelectedEdge(null);
+    setSelectedNodes(new Set());
   }, []);
 
   // 验证子工作流
@@ -646,6 +737,44 @@ function SubWorkflowEditorContent({
       return [...currentNodes, newNode];
     });
   }, [nodeTypesList, screenToFlowPosition, setNodes]);
+
+  // Add keyboard shortcuts for copy-paste
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'c':
+            e.preventDefault();
+            copyNodes();
+            break;
+          case 'v':
+            e.preventDefault();
+            pasteNodes();
+            break;
+        }
+      }
+      
+      // Delete key for selected nodes
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodes.size > 0) {
+          e.preventDefault();
+          // Don't allow deleting ForEachItemNode
+          const nodesToDelete = Array.from(selectedNodes).filter(nodeId => {
+            const node = nodes.find(n => n.id === nodeId);
+            return node && node.data.type !== 'ForEachItemNode';
+          });
+          
+          if (nodesToDelete.length > 0) {
+            setNodes(nodes => nodes.filter(n => !nodesToDelete.includes(n.id)));
+            setSelectedNodes(new Set());
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [copyNodes, pasteNodes, selectedNodes, nodes, setNodes]);
 
   // 暴露 API 给全局，让主界面的侧边栏可以调用
   useEffect(() => {
@@ -808,6 +937,7 @@ function SubWorkflowEditorContent({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeClick={onNodeClick}
           onNodeDoubleClick={(_, node) => handleNodeDoubleClick(node.id)}
           onEdgeClick={onEdgeClick}
           onEdgeMouseEnter={onEdgeMouseEnter}

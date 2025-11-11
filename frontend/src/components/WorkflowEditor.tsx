@@ -410,6 +410,8 @@ const WorkflowEditorContent = ({
   const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const [copiedNodes, setCopiedNodes] = useState<Node[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const { screenToFlowPosition } = useReactFlow();
   
   // ForEach 子工作流编辑状态
@@ -419,6 +421,9 @@ const WorkflowEditorContent = ({
     resultNodeId?: string;
     resultPortName?: string;
   } | null>(null);
+
+  // 处理编辑子工作流的引用，需要在使用前声明
+  const handleEditSubWorkflowRef = useRef<(nodeId: string) => void>(() => {});
 
   // Load initial workflow data
   useEffect(() => {
@@ -918,28 +923,125 @@ const WorkflowEditorContent = ({
     setSelectedEdge(null);
   }, [setEdges, setNodes, edges]);
 
-  // Handle background click to close context menu
+  // Handle background click to close context menu and clear selections
   const onPaneClick = useCallback(() => {
     setContextMenu(null);
     setSelectedEdge(null);
-  }, []);
-
-  // Handle node selection
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    event.stopPropagation();
+    setSelectedNodes(new Set());
     
-    // Update selection
+    // Clear visual selection
     setNodes(nodes => nodes.map(n => ({
       ...n,
       data: {
         ...n.data,
-        selected: n.id === node.id
+        selected: false
+      }
+    })));
+  }, [setNodes]);
+
+  // Generate unique node ID
+  const generateUniqueNodeId = useCallback((baseId: string, existingIds: Set<string>): string => {
+    let counter = 1;
+    let newId = baseId;
+    
+    while (existingIds.has(newId)) {
+      newId = `${baseId}_copy_${counter}`;
+      counter++;
+    }
+    
+    return newId;
+  }, []);
+
+  // Copy selected nodes
+  const copyNodes = useCallback(() => {
+    const nodesToCopy = nodes.filter(node => selectedNodes.has(node.id));
+    if (nodesToCopy.length > 0) {
+      setCopiedNodes(nodesToCopy);
+      console.log(`📋 Copied ${nodesToCopy.length} nodes`);
+    }
+  }, [nodes, selectedNodes]);
+
+  // Paste copied nodes
+  const pasteNodes = useCallback(() => {
+    if (copiedNodes.length === 0) return;
+
+    const existingIds = new Set(nodes.map(n => n.id));
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const flowPosition = screenToFlowPosition({ x: centerX, y: centerY });
+    
+    // Calculate offset for pasted nodes
+    const offset = { x: 50, y: 50 };
+    
+    const newNodes = copiedNodes.map((node, index) => {
+      const newId = generateUniqueNodeId(node.id, existingIds);
+      existingIds.add(newId); // Add to set to avoid duplicates in this batch
+      
+      return {
+        ...node,
+        id: newId,
+        position: {
+          x: flowPosition.x + (index * offset.x) - 200,
+          y: flowPosition.y + (index * offset.y) - 100
+        },
+        data: {
+          ...node.data,
+          label: `${newId} (${node.data.type})`,
+          selected: false,
+          // Re-inject callbacks for ForEachNode if needed
+          ...(node.data.type === 'ForEachNode' ? {
+            onEditSubWorkflow: (nodeId: string) => {
+              console.log('📞 onEditSubWorkflow called for:', nodeId);
+              handleEditSubWorkflowRef.current(nodeId);
+            },
+          } : {}),
+        }
+      };
+    });
+
+    setNodes(nodes => [...nodes, ...newNodes]);
+    
+    // Select the newly pasted nodes
+    const newNodeIds = new Set(newNodes.map(n => n.id));
+    setSelectedNodes(newNodeIds);
+    
+    console.log(`📋 Pasted ${newNodes.length} nodes`);
+  }, [copiedNodes, nodes, screenToFlowPosition, generateUniqueNodeId, setNodes, handleEditSubWorkflowRef]);
+
+  // Handle node selection with multi-select support
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    event.stopPropagation();
+    
+    const isMultiSelect = event.ctrlKey || event.metaKey;
+    let newSelectedNodes: Set<string>;
+    
+    if (isMultiSelect) {
+      // Multi-select mode
+      newSelectedNodes = new Set(selectedNodes);
+      if (newSelectedNodes.has(node.id)) {
+        newSelectedNodes.delete(node.id);
+      } else {
+        newSelectedNodes.add(node.id);
+      }
+    } else {
+      // Single select mode
+      newSelectedNodes = new Set([node.id]);
+    }
+    
+    setSelectedNodes(newSelectedNodes);
+    
+    // Update visual selection
+    setNodes(nodes => nodes.map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        selected: newSelectedNodes.has(n.id)
       }
     })));
     
     // Close edge selection
     setSelectedEdge(null);
-  }, [setNodes]);
+  }, [setNodes, selectedNodes]);
 
   // Handle node data update
   const onNodeUpdate = useCallback((nodeId: string, data: any) => {
@@ -1006,8 +1108,7 @@ const WorkflowEditorContent = ({
     setEditingSubWorkflow(null);
   }, [editingSubWorkflow, setNodes]);
 
-  // 注入 onEditSubWorkflow 回调到所有节点
-  const handleEditSubWorkflowRef = useRef(handleEditSubWorkflow);
+  // 更新 handleEditSubWorkflowRef 的当前值
   handleEditSubWorkflowRef.current = handleEditSubWorkflow;
   
   useEffect(() => {
@@ -1073,7 +1174,7 @@ const WorkflowEditorContent = ({
   // 缓存 workflow 对象以避免重复执行
   const workflow = useMemo(() => transformFlowToWorkflow(nodes, edges), [nodes, edges]);
 
-  // Add keyboard shortcuts for menu actions
+  // Add keyboard shortcuts for menu actions and copy-paste
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
@@ -1094,13 +1195,30 @@ const WorkflowEditorContent = ({
             e.preventDefault();
             exportWorkflow();
             break;
+          case 'c':
+            e.preventDefault();
+            copyNodes();
+            break;
+          case 'v':
+            e.preventDefault();
+            pasteNodes();
+            break;
+        }
+      }
+      
+      // Delete key for selected nodes
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedNodes.size > 0) {
+          e.preventDefault();
+          setNodes(nodes => nodes.filter(n => !selectedNodes.has(n.id)));
+          setSelectedNodes(new Set());
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [importWorkflow, saveWorkflow, exportWorkflow]);
+  }, [importWorkflow, saveWorkflow, exportWorkflow, copyNodes, pasteNodes, selectedNodes, setNodes]);
 
   // 自定义连线样式
   const edgeStyles = {
