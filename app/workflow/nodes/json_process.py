@@ -1,6 +1,7 @@
 from app.workflow.base import WorkflowNode
 from typing import Dict, Any
 import json
+from json_repair import repair_json
 
 
 class JsonParseNode(WorkflowNode):
@@ -39,14 +40,20 @@ class JsonParseNode(WorkflowNode):
                 text = json_string
             
             # 解析JSON字符串
-            parsed_object = json.loads(text)
+            try:
+                parsed_object = json.loads(text)
+            except json.JSONDecodeError:
+                # JSON解析失败，尝试使用json_repair修复
+                try:
+                    repaired_text = repair_json(text)
+                    parsed_object = json.loads(repaired_text)
+                except Exception as repair_error:
+                    raise ValueError(f"JSON parsing failed and repair failed: {str(repair_error)}")
             
             return {
                 "json_object": parsed_object
             }
                     
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON string: {str(e)}")
         except Exception as e:
             raise Exception(f"Error parsing JSON: {str(e)}")
 
