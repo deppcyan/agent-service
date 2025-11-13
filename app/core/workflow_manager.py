@@ -96,7 +96,7 @@ class WorkflowManager:
                 logger.info(f"Task {task_id} completed result node keys: {list(completed_result['result'].keys())}")
                 for node_id, node_result in completed_result['result'].items():
                     logger.info(f"Task {task_id} completed node {node_id} result keys: {list(node_result.keys())}")
-                    if 'sub_workflow_results' in node_result:
+                    if 'sub_workflow_results' in node_result and node_result['sub_workflow_results'] is not None:
                         logger.info(f"Task {task_id} completed node {node_id} has sub_workflow_results with {len(node_result['sub_workflow_results'])} items")
             return completed_result
             
