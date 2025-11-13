@@ -38,7 +38,7 @@ class APIURLConfig:
                 self._config_data = json.load(f)
             
             current_env = self.get_environment()
-            logger.info(f"当前环境: {current_env}")
+            logger.info(f"DIGEN_SERVICE_ENV 当前环境: {current_env}")
             logger.info(f"API URL配置已加载: {config_path}")
             
         except FileNotFoundError:
