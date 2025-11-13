@@ -9,6 +9,8 @@
             "concat-upscale": "http://192.168.0.238:8000/v1/generate",
             "concat-upscale-audio": "http://192.168.0.238:8000/v1/generate",
             "qwen-aio-edit-1": "http://192.168.0.238:8000/v1/generate",
+            "qwen-aio-edit-2": "http://192.168.0.238:8000/v1/generate",
+            "qwen-aio-edit-3": "http://192.168.0.238:8000/v1/generate",
             "qwen-edit-nextsence": "http://192.168.0.238:8000/v1/generate"
         },
         "vllm": {
@@ -26,6 +28,8 @@
             "concat-upscale": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
             "concat-upscale-audio": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
             "qwen-aio-edit-1": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
+            "qwen-aio-edit-2": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
+            "qwen-aio-edit-3": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
             "qwen-edit-nextsence": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate"
         },
         "vllm": {
@@ -43,6 +47,8 @@
             "concat-upscale": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
             "concat-upscale-audio": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
             "qwen-aio-edit-1": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
+            "qwen-aio-edit-2": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
+            "qwen-aio-edit-3": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate",
             "qwen-edit-nextsence": "https://de721f711a60f906-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/generate"
         },
         "vllm": {
