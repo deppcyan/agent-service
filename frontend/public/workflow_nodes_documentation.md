@@ -1377,8 +1377,20 @@ static_video_request → static_video_controller → static_video_service
 - 输入合并 (`ConcatModelRequestInputNode`)
 
 **3. 不同模型服务调用**
-- `wan-talk`: 对话视频生成模型
+- `flux`: 图像生成模型
+- `qwen-edit`: 图片编辑模型
+- `qwen-image`: 图像生成模型
+- `wan-talk`: 图生视频生成模型，可以匹配唇形，输入是图片地址，外加audio prompt是说话的文本。
 - `wan-i2v`: 图像到视频转换模型
+- `concat-upscale`: 视频拼接和放大服务
+- `concat-upscale-audio`: 带音频的视频拼接和放大服务
+- `qwen-aio-edit-1`: qwen-edit NSFW版本，参考图是单张图片
+- `qwen-aio-edit-2`: qwen-edit NSFW版本，参考图是2张图片
+- `qwen-aio-edit-3`: qwen-edit NSFW版本，参考图是3张图片
+- `qwen-edit-nextsence`: qwen-edit外加nextsence lora 
+- `index-tts`: 文本转语音服务
+- `multitalk-mix-sounds`: 图生视频服务，输入是音频地址，会匹配唇形，声音可以是混合背景音。
+- `multitalk-only-vocals`: 图生视频服务，输入是音频地址，会匹配唇形，声音可以是人声。
 
 **4. 流程控制**
 - `PassThroughNode`: 确保只有满足条件的分支执行
