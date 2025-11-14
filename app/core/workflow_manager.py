@@ -35,13 +35,13 @@ class WorkflowManager:
             logger.error(f"Error creating workflow executor: {str(e)}")
             raise
 
-    async def execute_workflow(self, workflow_json: Dict[str, Any], webhook_url: Optional[str] = None) -> str:
+    async def execute_workflow(self, workflow_json: Dict[str, Any], webhook_url: Optional[str] = None, task_id: Optional[str] = None) -> str:
         """Execute a workflow asynchronously with webhook callback
         
         Args:
             workflow_json: The workflow configuration in JSON format
-            input_data: Input data for the workflow
             webhook_url: Optional URL to call when workflow completes
+            task_id: Optional task ID to use, if not provided a new one will be generated
             
         Returns:
             str: Task ID for tracking the workflow execution
@@ -50,8 +50,9 @@ class WorkflowManager:
             # Create workflow config from JSON
             workflow_config = WorkflowConfig.from_dict(workflow_json)
             
-            # Generate unique task ID
-            task_id = str(uuid.uuid4())
+            # Use provided task ID or generate unique task ID
+            if task_id is None:
+                task_id = str(uuid.uuid4())
             
             # Create executor with task ID
             executor = self.create_workflow_executor(workflow_config, task_id)
@@ -90,14 +91,7 @@ class WorkflowManager:
         # Then check completed tasks
         if task_id in self.completed_tasks:
             completed_result = self.completed_tasks[task_id]
-            # Debug: Log completed task structure
             logger.info(f"Task {task_id} completed result keys: {list(completed_result.keys())}")
-            if 'result' in completed_result:
-                logger.info(f"Task {task_id} completed result node keys: {list(completed_result['result'].keys())}")
-                for node_id, node_result in completed_result['result'].items():
-                    logger.info(f"Task {task_id} completed node {node_id} result keys: {list(node_result.keys())}")
-                    if 'sub_workflow_results' in node_result and node_result['sub_workflow_results'] is not None:
-                        logger.info(f"Task {task_id} completed node {node_id} has sub_workflow_results with {len(node_result['sub_workflow_results'])} items")
             return completed_result
             
         # Return not found status instead of None

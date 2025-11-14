@@ -48,6 +48,9 @@ class BatchModelServiceNode(IterativeNode):
         # 创建模型服务节点
         model_node = ModelServiceNode()
         
+        # 传递 task_id 到子节点
+        model_node.task_id = self.task_id
+        
         # 设置输入值
         model_node.input_values = {
             "model": self.input_values["model"],

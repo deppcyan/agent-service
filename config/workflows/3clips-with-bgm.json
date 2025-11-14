@@ -28,8 +28,8 @@
       },
       "selected": false
     },
-    "1762172447773": {
-      "type": "IntToTextNode",
+    "image_url": {
+      "type": "TextInputNode",
       "inputs": {},
       "selected": false
     },
@@ -158,21 +158,6 @@
       },
       "selected": false
     },
-    "concat": {
-      "type": "ModelServiceNode",
-      "inputs": {
-        "timeout": 500,
-        "model": "concat-upscale",
-        "request": null
-      },
-      "selected": true
-    },
-    "image_url": {
-      "type": "TextInputNode",
-      "inputs": {},
-      "width": 400,
-      "selected": false
-    },
     "concat_param": {
       "type": "ModelRequestNode",
       "inputs": {
@@ -182,9 +167,25 @@
         "width": 768,
         "height": 768,
         "batch_size": 1,
-        "extra_options": {},
-        "upload_url": [],
-        "upload_wasabi_url": []
+        "extra_options": {}
+      },
+      "selected": false
+    },
+    "concat": {
+      "type": "ModelServiceNode",
+      "inputs": {
+        "timeout": 500,
+        "model": "concat-upscale",
+        "request": null
+      },
+      "selected": false
+    },
+    "1763089773319": {
+      "type": "TypeConvertNode",
+      "inputs": {
+        "value": null,
+        "from_type": "int",
+        "to_type": "text"
       },
       "width": 400,
       "selected": false
@@ -296,18 +297,6 @@
     {
       "from_node": "clips_count",
       "from_port": "value",
-      "to_node": "1762172447773",
-      "to_port": "value"
-    },
-    {
-      "from_node": "1762172447773",
-      "from_port": "text",
-      "to_node": "1762172394873",
-      "to_port": "text_a"
-    },
-    {
-      "from_node": "clips_count",
-      "from_port": "value",
       "to_node": "1762232528809",
       "to_port": "repeat_count"
     },
@@ -334,6 +323,18 @@
       "from_port": "request",
       "to_node": "concat",
       "to_port": "request"
+    },
+    {
+      "from_node": "clips_count",
+      "from_port": "value",
+      "to_node": "1763089773319",
+      "to_port": "value"
+    },
+    {
+      "from_node": "1763089773319",
+      "from_port": "value",
+      "to_node": "1762172394873",
+      "to_port": "text_a"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, HTTPException, Depends, Request
 from app.utils.utils import verify_api_key
 from app.utils.logger import logger
@@ -53,14 +54,18 @@ async def generate(
     api_key: str = Depends(verify_api_key)
 ):
     """Start a new generation job"""
-    logger.info(f"New request: {request.model_dump_json()}")
+    # Generate job ID first so we can display it in logs
+    job_id = str(uuid.uuid4())
     
-    # Add job to queue
+    logger.info(f"New request: {request.model_dump_json()}", extra={"job_id": job_id})
+    
+    # Add job to queue with the generated job ID
     return await job_manager.add_job(
         model=request.model,
         input=[item.model_dump() for item in request.input],
         webhook_url=request.webhook_url,
-        options=request.options.model_dump()
+        options=request.options.model_dump(),
+        job_id=job_id
     )
 
 @router.post("/cancel/{job_id}", response_model=CancelResponse)

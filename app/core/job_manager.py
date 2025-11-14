@@ -29,14 +29,14 @@ class JobManager:
         from app.core.workflow_manager import workflow_manager
         self.workflow_manager = workflow_manager
     
-    async def add_job(self, model: str, input: List[Dict[str, Any]], webhook_url: Optional[str] = None, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def add_job(self, model: str, input: List[Dict[str, Any]], webhook_url: Optional[str] = None, options: Optional[Dict[str, Any]] = None, job_id: Optional[str] = None) -> Dict[str, Any]:
         """Add a new job and start workflow execution"""
         try:
             # Get model configuration
             model_config = get_model_config(model)
             
-            # Generate task ID
-            task_id = str(uuid.uuid4())
+            # Use provided job_id or generate new task ID
+            task_id = job_id or str(uuid.uuid4())
             
             # Create job state with task ID as job ID
             job_state = JobState(
@@ -72,7 +72,8 @@ class JobManager:
             # Start workflow execution with webhook callback and preprocessed data
             workflow_task_id = await self.workflow_manager.execute_workflow(
                 preprocessed_data["workflow"],
-                local_webhook_url
+                local_webhook_url,
+                task_id  # Pass the job task_id to workflow execution
             )
             
         except Exception as e:
