@@ -44,7 +44,7 @@
         },
         "vllm": {
             "qwen-llm": "https://65942ddcfb59a7f3-8000.us-ca-nas-2.gpu-instance.novita.ai/v1/chat/completions",
-            "qwen-vl": "https://50067120bfc96748-8000.us-ca-6.gpu-instance.novita.ai/v1/generate"
+            "qwen-vl": "http://internal-prod-wan2video-lb-145498001.us-west-1.elb.amazonaws.com/api/prompt/v1/generate"
         }
     },
     "prod": {
